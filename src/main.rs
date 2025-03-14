@@ -5,9 +5,12 @@ pub mod config;
 use config::{Config, CreateConfigDto};
 use dirs;
 use inquire::Text;
+use log::debug;
 
 fn main() {
-  if let Ok(exist) = Config::exists() {
+  env_logger::init();
+  
+  let config = if let Ok(exist) = Config::exists() {
     if !exist {
       let mut ssh_dir = dirs::home_dir().unwrap();
       ssh_dir.push(".ssh");
@@ -19,9 +22,15 @@ fn main() {
         ssh_path
       };
 
-      Config::create(&dto).expect("error");
+      Config::create(&dto).expect("error")
+    } else {
+      Config::read().expect("error")
     }
     
-  }
+  } else {
+    panic!("");
+  };
+
+  debug!("{:?}", config);
   println!("Hello, world!");
 }

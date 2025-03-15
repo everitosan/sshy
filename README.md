@@ -1,8 +1,8 @@
 # SSHY
+SSH connections manager without ssh config files.
 
-Cli to manage ssh connections avoiding to use ssh config files.
+**Features**  
+- Manage groups, severs and keys
+- Enable portable and encrypted information source (sqlite)
 
-It uses a sqlite to store and organize all needed information to conenct via ssh (except of key files).
-
-| It needs ssh and ssh-keygen to be installed in your system.
-
+It needs `ssh` and `ssh-keygen` to be installed in your system.

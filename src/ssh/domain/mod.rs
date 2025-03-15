@@ -6,7 +6,21 @@ use crate::error::Result;
 use super::dtos;
 
 #[derive(Default)]
+pub enum KeyType {
+  #[default]
+  Public, 
+  Private
+}
+
+#[derive(Default)]
 pub struct Key {
+  pub key_type: KeyType,
+  pub server_id: String,
+  pub content: String,
+}
+
+#[derive(Default)]
+pub struct KeyPair {
   pub id: Uuid,
   pub server_id: String,
   pub file: Option<PathBuf>,
@@ -21,8 +35,7 @@ pub struct Server {
   pub hostname: String,
   pub port: u8,
   pub user: String,
-  pub private_key: Key,
-  pub public_key: Key
+  // pub keys: KeyPair
 }
 
 #[derive(Default)]
@@ -41,7 +54,7 @@ pub trait SshStore {
   async fn list_groups(&self, id: Option<Uuid>) -> Result<Vec<Group>>;
   fn update_group(id: Uuid, dto: dtos::UpdateGroupDto) -> Result<Group>;
   fn create_server(dto: dtos::CreateServerDto) -> Result<Server>;
-  fn list_servers(id: Uuid) -> Result<Vec<Server>>;
+  async fn list_servers(&self, group_id: Uuid) -> Result<Vec<Server>>;
   fn update_server(id: Uuid, dto: dtos::CreateServerDto) -> Result<Server>;
   fn update_server_keys(id: Uuid, dto: dtos::KeyDto) -> Result<Server>;
 }

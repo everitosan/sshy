@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use uuid::Uuid;
 
+use super::domain::KeyType;
+
 #[derive(Default)]
 pub struct CreateServerDto {
   pub group_id: Uuid,
@@ -27,6 +29,6 @@ pub struct UpdateGroupDto {
 
 #[derive(Default)]
 pub struct KeyDto {
-  pub file: PathBuf,
+  pub key_type: KeyType,
   pub content: String,
 }

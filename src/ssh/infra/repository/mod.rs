@@ -91,11 +91,11 @@ impl <'a> SshStore for SqliteStore<'a> {
   async fn list_groups(&self, id: Option<uuid::Uuid>) -> crate::error::Result<Vec<Group>> {
     let rows;
     if let Some(group_id) = id {
-      let q = r#"SELECT (id, parent_id, name) FROM sshy_group WHERE parent_id = ?"#;
+      let q = r#"SELECT id, parent_id, name FROM sshy_group WHERE parent_id = ?"#;
       rows = sqlx::query(q).bind(group_id.to_string()).fetch_all(self.pool).await?;
     
     } else {
-      let q = r#"SELECT (id, parent_id, name) FROM sshy_group"#;
+      let q = r#"SELECT id, parent_id, name FROM sshy_group"#;
       rows = sqlx::query(q).fetch_all(self.pool).await?;
     }
 
@@ -111,8 +111,19 @@ impl <'a> SshStore for SqliteStore<'a> {
     todo!()
   }
 
-  fn list_servers(id: uuid::Uuid) -> crate::error::Result<Vec<crate::ssh::domain::Server>> {
-    todo!()
+  async fn list_servers(&self, group_id: uuid::Uuid) -> crate::error::Result<Vec<crate::ssh::domain::Server>> {
+    let q = r#"
+      SELECT 
+        id server, name, hostname, port, user
+      FROM 
+        sshy_server
+      WHERE
+        s.id = ?
+    "#;
+    let rows= sqlx::query(q).bind(group_id.to_string()).fetch_all(self.pool).await?;
+    let res: Vec<Server> = rows.iter().map(|r| server_from_row(r)).collect();
+
+    Ok(res)
   }
 
   fn update_server(id: uuid::Uuid, dto: crate::ssh::dtos::CreateServerDto) -> crate::error::Result<crate::ssh::domain::Server> {
@@ -135,4 +146,15 @@ fn group_from_row(row: &SqliteRow) -> Group {
   };
   g.name = row.get(2);
   g
+}
+
+fn server_from_row(row: &SqliteRow) -> Server {
+  let mut s = Server::default();
+  s.id = Uuid::from_str(row.get(0)).unwrap();
+  s.group_id = Uuid::from_str(row.get(1)).unwrap();
+  s.name = row.get(2);
+  s.hostname = row.get(3);
+  s.port = row.get(4);
+  s.user = row.get(5);
+  s
 }

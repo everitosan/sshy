@@ -1,13 +1,45 @@
 mod input;
+mod parser;
 
+
+use input::group::groups_as_vec;
+use inquire::Select;
 use log::debug;
 use sqlx::SqlitePool;
 
+use clap::{Parser, Subcommand};
 
 use sshy::{
   config::Config,
-  ssh::{domain::SshStore, infra::repository::{DBCreateResutl, SqliteStore}},
+  ssh::{app::{create_group, list_groups}, domain::SshStore, infra::repository::{DBCreateResutl, SqliteStore}},
 };
+use parser::group::{GroupActions, GroupCommand};
+
+
+#[derive(Debug, Parser)]
+#[command(name = "sshy", version = "1.0", about = "ssh connections manager")]
+struct Cli {
+  #[command(subcommand)]
+  command: Option<Command>
+}
+
+#[derive(Debug, Subcommand)] 
+enum Command {
+  /// Actions over a group
+  Group(GroupCommand),
+  /// Actions over a server
+  Server(ServerCommmand)
+}
+
+
+
+/*
+* 🆂🅴🆁🆅🅴🆁
+*/
+#[derive(Debug, Parser)]
+struct ServerCommmand {
+
+}
 
 
 #[async_std::main]
@@ -58,6 +90,60 @@ async fn main() -> Result<(), ()> {
       debug!("Database already exists");
     }
   };
+
+
+  let cli = Cli::parse();
+
+  if let Some (command) = cli.command {
+    match command {
+      Command::Group(gc) => {
+        match gc.command {
+          GroupActions::List => {
+            match list_groups(&sqlite_repo, None).await {
+              Ok(groups) => {
+  
+              },
+              Err(e) => {
+                panic!("{}", e);
+              }
+            };
+          },
+          GroupActions::Create(args) => {
+  
+          },
+          GroupActions::Edit => {
+    
+          }
+        }
+      },
+      Command::Server(cs) => {
+  
+      }
+    };
+
+  } else {
+    // Interactive mode
+    match list_groups(&sqlite_repo, None).await {
+      Ok(groups) => {
+        let mut options = groups_as_vec(&groups);
+        options.push("-> Create".to_owned());
+        let opt = Select::new("Selecciona un grupo, servidor o acción", options).prompt().unwrap();
+        match opt.as_str() {
+          "-> Create" => {
+            let name = input::group::ask_group().unwrap();
+             create_group(&sqlite_repo, &name, None).await.unwrap();
+          },
+          _ => {
+
+          }
+        }
+      },
+      Err(e) => {
+        panic!("{}", e);
+      }
+    };
+  }
+
 
   Ok(())
 }

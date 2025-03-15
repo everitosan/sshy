@@ -19,9 +19,7 @@ CREATE TABLE sshy_server (
   name TEXT NOT NULL,
   hostname TEXT NOT NULL,
   port INTEGER NOT NULL,
-  user TEXT NOT NULL,
-  private_key TEXT NOT NULL,
-  public_key TEXT NOT NULL,
+  user TEXT NOT NULL
   FOREIGN KEY (group_id) REFERENCES sshy_group(id) ON DELETE CASCADE
 );
 
@@ -36,8 +34,10 @@ CREATE TABLE sshy_key_pair (
   FOREIGN KEY (server_id) REFERENCES sshy_server(id) ON DELETE CASCADE
 );
 
+DROP TABLE IF EXISTS sshy_key;
 CREATE TABLE sshy_key (
   type TEXT CHECK(type IN ('public', 'private')) NOT NULL,
   pair_id TEXT NOT NULL,
+  content TEXT NOT NULL,
   FOREIGN KEY (pair_id) REFERENCES sshy_key_pair(id) ON DELETE CASCADE
 );

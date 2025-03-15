@@ -37,11 +37,11 @@ pub struct Group {
 #[async_trait]
 pub trait SshStore {
   async fn initialize(&self) -> Result<()>;
-  fn create_group(dto: dtos::CreateServerDto) -> Result<Server>;
-  fn select_groups(id: Option<Uuid>) -> Result<Vec<Server>>;
-  fn update_group(id: Uuid, dto: dtos::CreateServerDto) -> Result<Group>;
+  async fn create_group(&self, dto: dtos::CreateGroupDto) -> Result<Group>;
+  async fn list_groups(&self, id: Option<Uuid>) -> Result<Vec<Group>>;
+  fn update_group(id: Uuid, dto: dtos::UpdateGroupDto) -> Result<Group>;
   fn create_server(dto: dtos::CreateServerDto) -> Result<Server>;
-  fn select_servers(id: Uuid) -> Result<Vec<Server>>;
+  fn list_servers(id: Uuid) -> Result<Vec<Server>>;
   fn update_server(id: Uuid, dto: dtos::CreateServerDto) -> Result<Server>;
   fn update_server_keys(id: Uuid, dto: dtos::KeyDto) -> Result<Server>;
 }

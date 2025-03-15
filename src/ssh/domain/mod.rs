@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use uuid::Uuid;
+use async_trait::async_trait;
 
 use crate::error::Result;
 use super::dtos;
@@ -17,9 +18,9 @@ pub struct Server {
   pub id: Uuid,
   pub group_id: Uuid,
   pub name: String,
-  pub ip: String,
-  pub host: String,
+  pub hostname: String,
   pub port: u8,
+  pub user: String,
   pub private_key: Key,
   pub public_key: Key
 }
@@ -33,8 +34,9 @@ pub struct Group {
   pub servers: Option<Vec<Server>>
 }
 
+#[async_trait]
 pub trait SshStore {
-  fn initialize() -> Result<()>;
+  async fn initialize(&self) -> Result<()>;
   fn create_group(dto: dtos::CreateServerDto) -> Result<Server>;
   fn select_groups(id: Option<Uuid>) -> Result<Vec<Server>>;
   fn update_group(id: Uuid, dto: dtos::CreateServerDto) -> Result<Group>;

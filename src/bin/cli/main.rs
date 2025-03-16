@@ -1,19 +1,26 @@
-mod input;
+mod prompt;
 mod parser;
 
+use std::{str::FromStr, thread::sleep, time};
 
-use input::group::groups_as_vec;
+use colorize::AnsiColor;
 use inquire::Select;
 use log::debug;
 use sqlx::SqlitePool;
-
 use clap::{Parser, Subcommand};
 
 use sshy::{
   config::Config,
-  ssh::{app::{create_group, list_groups}, domain::SshStore, infra::repository::{DBCreateResutl, SqliteStore}},
+  ssh::{app::{create_group, get_group, list_groups}, domain::{Group, SshStore}, infra::repository::{DBCreateResutl, SqliteStore}},
 };
-use parser::group::{GroupActions, GroupCommand};
+
+use parser::{
+  group::{GroupActions, GroupCommand},
+  server::ServerCommmand
+};
+
+
+
 
 
 #[derive(Debug, Parser)]
@@ -32,16 +39,6 @@ enum Command {
 }
 
 
-
-/*
-* 🆂🅴🆁🆅🅴🆁
-*/
-#[derive(Debug, Parser)]
-struct ServerCommmand {
-
-}
-
-
 #[async_std::main]
 async fn main() -> Result<(), ()> {
   env_logger::init();
@@ -52,7 +49,7 @@ async fn main() -> Result<(), ()> {
         // Read configuration
         Config::read().expect("error")
       } else {
-        let dto = input::config::ask().unwrap();
+        let dto = prompt::config::ask().unwrap();
         Config::create(&dto).expect("error")
       }
     },
@@ -62,9 +59,10 @@ async fn main() -> Result<(), ()> {
     }
   };
 
-  // let pass = match input::password::ask(config.db_name.exists()) {
-  //   Some(p) => p,
-  //   None => {
+  // let pass = match prompt::password::ask(config.db_name.exists()) {
+  //   Ok(p) => p,
+  //   Err(e) => {
+  //     println!("{}", e);
   //     return Ok(())
   //   }
   // };
@@ -94,56 +92,112 @@ async fn main() -> Result<(), ()> {
 
   let cli = Cli::parse();
 
-  if let Some (command) = cli.command {
-    match command {
-      Command::Group(gc) => {
-        match gc.command {
-          GroupActions::List => {
-            match list_groups(&sqlite_repo, None).await {
-              Ok(groups) => {
+  if let Some (_command) = cli.command {
+    todo!();
+    // match command {
+    //   Command::Group(gc) => {
+    //     match gc.command {
+    //       GroupActions::List => {
+    //         match list_groups(&sqlite_repo, None).await {
+    //           Ok(groups) => {
   
-              },
-              Err(e) => {
-                panic!("{}", e);
-              }
-            };
-          },
-          GroupActions::Create(args) => {
+    //           },
+    //           Err(e) => {
+    //             panic!("{}", e);
+    //           }
+    //         };
+    //       },
+    //       GroupActions::Create(args) => {
   
-          },
-          GroupActions::Edit => {
+    //       },
+    //       GroupActions::Edit => {
     
-          }
-        }
-      },
-      Command::Server(cs) => {
+    //       }
+    //     }
+    //   },
+    //   Command::Server(cs) => {
   
-      }
-    };
+    //   }
+    // };
 
   } else {
     // Interactive mode
-    match list_groups(&sqlite_repo, None).await {
-      Ok(groups) => {
-        let mut options = groups_as_vec(&groups);
-        options.push("-> Create".to_owned());
-        let opt = Select::new("Selecciona un grupo, servidor o acción", options).prompt().unwrap();
-        match opt.as_str() {
-          "-> Create" => {
-            let name = input::group::ask_group().unwrap();
-             create_group(&sqlite_repo, &name, None).await.unwrap();
-          },
-          _ => {
+    let mut current_group: Option<Group> = None;
 
+    loop {
+      match list_groups(&sqlite_repo, &current_group).await {
+        Ok(groups) => {
+          // Set options
+          let mut options = prompt::group::transform::groups_as_vec(&groups);
+          options.push("-------------------------------------".grey());
+          if let None = current_group {
+            for op in prompt::group::options::ROOT_OPTS { options.push(op.to_string()); }
+          } else {
+            for op in prompt::group::options::OPTS { options.push(op.to_string()); }
           }
+
+          // Ask for option
+          let str_opt = match Select::new("", options).prompt() {
+            Ok(o) => o,
+            Err(_) => {
+              print_farewell();
+              return Ok(())
+            }
+          };
+          // Evluate selected option          
+          if let Ok(predefined_option) = prompt::group::options::ExtraOptions::from_str(&str_opt) {
+            match predefined_option {
+              prompt::group::options::ExtraOptions::PreviuosGroup => {
+                if let Some(g) = &current_group {
+                  if let Some(parent) = g.parent_id {
+                    let previous_group = get_group(&sqlite_repo, parent).await.unwrap();
+                    current_group = Some(previous_group)
+                  } else {
+                    current_group = None
+                  }
+                }
+              },
+              prompt::group::options::ExtraOptions::CreateGroup => {
+                let name = match prompt::group::ask_group() {
+                  Ok(n) => n,
+                  Err(_) => {
+                    continue;
+                  }
+                };
+                create_group(&sqlite_repo, &name, &current_group).await.unwrap();
+                let st = time::Duration::from_millis(100);
+                sleep(st);
+              },
+              prompt::group::options::ExtraOptions::AddServer => {
+                let server_prompt = match prompt::server::ask() {
+                  Ok(s) => s,
+                  Err(_) => {
+                    continue;
+                  }
+                };
+              },
+              _ => {}
+            };
+          } else {
+            // If select a group, enter o that group
+            if let Some(group) = groups.iter().find(|g| str_opt == prompt::group::transform::group_as_str(g)) {
+              current_group = Some(group.to_owned());
+            }
+            
+          }
+        },
+        Err(e) => {
+          panic!("{}", e);
         }
-      },
-      Err(e) => {
-        panic!("{}", e);
-      }
-    };
+      }; 
+    }
   }
 
+}
 
-  Ok(())
+
+fn print_farewell() {
+  let mesasage = format!("Thanks for using {} a software created with {} by {}", "SSHY".yellow(), "♥".yellow(), "evesan".yellow().italic());
+
+  println!("{}", mesasage);
 }

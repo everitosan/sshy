@@ -19,7 +19,7 @@ CREATE TABLE sshy_server (
   name TEXT NOT NULL,
   hostname TEXT NOT NULL,
   port INTEGER NOT NULL,
-  user TEXT NOT NULL
+  user TEXT NOT NULL,
   FOREIGN KEY (group_id) REFERENCES sshy_group(id) ON DELETE CASCADE
 );
 

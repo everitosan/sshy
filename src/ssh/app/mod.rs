@@ -1,12 +1,15 @@
-use std::str::FromStr;
-
 use uuid::Uuid;
 
-use crate::error::{Result, Error};
+use crate::error::Result;
 use super::{domain::{Group, SshStore}, dtos::CreateGroupDto};
 
 
-pub async fn create_group<T: SshStore>(store: &T, name: &str, parent_id: Option<Uuid>) -> Result<Group> {
+pub async fn create_group<T: SshStore>(store: &T, name: &str,  parent_group: &Option<Group>) -> Result<Group> {
+  let parent_id: Option<Uuid> = if let Some(parent) = parent_group {
+    Some(parent.id.clone())
+  } else {
+    None
+  };
   let id = Uuid::new_v4();
   let dto = CreateGroupDto {
     id,
@@ -17,15 +20,17 @@ pub async fn create_group<T: SshStore>(store: &T, name: &str, parent_id: Option<
   store.create_group(dto).await
 }
 
-pub async fn list_groups<T: SshStore>(store: &T, id_str: Option<String>) -> Result<Vec<Group>> {
-  let id: Option<Uuid> = match id_str {
-    Some(str) => {
-      let id = Uuid::from_str(&str)
-        .map_err(|e| Error::Integrity(format!("{}", e)) )?;
-      Some(id)
-    },
-    None => None
+pub async fn get_group<T: SshStore>(store: &T, id: Uuid) -> Result<Group> {
+  store.get_by_id(id).await
+}
+
+pub async fn list_groups<T: SshStore>(store: &T, parent_group: &Option<Group>) -> Result<Vec<Group>> {
+
+  let id: Option<Uuid> = if let Some(parent) = parent_group {
+  Some(parent.id.clone())
+  } else {
+    None
   };
 
-  store.list_groups(id).await
+  store.list_groups(&id).await
 }

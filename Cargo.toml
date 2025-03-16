@@ -27,3 +27,6 @@ sqlx = { version = "0.5.9", features=["runtime-async-std-native-tls", "sqlite"] 
 ## cli
 clap = { version = "4.5.32", features = ["derive"] }
 inquire = "0.7.5"
+colorize = "0.1.0"
+strum = "0.27"
+strum_macros = "0.27"

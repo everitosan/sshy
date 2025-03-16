@@ -27,7 +27,7 @@ pub struct KeyPair {
   pub content: String,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Server {
   pub id: Uuid,
   pub group_id: Uuid,
@@ -38,7 +38,7 @@ pub struct Server {
   // pub keys: KeyPair
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Group {
   pub id: Uuid,
   pub parent_id: Option<Uuid>,
@@ -51,7 +51,8 @@ pub struct Group {
 pub trait SshStore {
   async fn initialize(&self) -> Result<()>;
   async fn create_group(&self, dto: dtos::CreateGroupDto) -> Result<Group>;
-  async fn list_groups(&self, id: Option<Uuid>) -> Result<Vec<Group>>;
+  async fn list_groups(&self, id: &Option<Uuid>) -> Result<Vec<Group>>;
+  async fn get_by_id(&self, id: Uuid) -> Result<Group>;
   fn update_group(id: Uuid, dto: dtos::UpdateGroupDto) -> Result<Group>;
   fn create_server(dto: dtos::CreateServerDto) -> Result<Server>;
   async fn list_servers(&self, group_id: Uuid) -> Result<Vec<Server>>;

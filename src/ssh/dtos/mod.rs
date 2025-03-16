@@ -1,7 +1,4 @@
-use std::path::PathBuf;
-
 use uuid::Uuid;
-
 use super::domain::KeyType;
 
 #[derive(Default)]

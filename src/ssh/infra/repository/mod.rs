@@ -88,14 +88,21 @@ impl <'a> SshStore for SqliteStore<'a> {
 
   }
 
-  async fn list_groups(&self, id: Option<uuid::Uuid>) -> crate::error::Result<Vec<Group>> {
+  async fn get_by_id(&self, id: Uuid) -> Result<Group> {
+    let q = r#"SELECT id, parent_id, name FROM sshy_group WHERE id = ?"#;
+    let row = sqlx::query(q).bind(id.to_string()).fetch_one(self.pool).await?;
+    let g = group_from_row(&row);
+    Ok(g)
+  }
+
+  async fn list_groups(&self, id: &Option<uuid::Uuid>) -> crate::error::Result<Vec<Group>> {
     let rows;
     if let Some(group_id) = id {
       let q = r#"SELECT id, parent_id, name FROM sshy_group WHERE parent_id = ?"#;
       rows = sqlx::query(q).bind(group_id.to_string()).fetch_all(self.pool).await?;
     
     } else {
-      let q = r#"SELECT id, parent_id, name FROM sshy_group"#;
+      let q = r#"SELECT id, parent_id, name FROM sshy_group WHERE parent_id IS NULL"#;
       rows = sqlx::query(q).fetch_all(self.pool).await?;
     }
 

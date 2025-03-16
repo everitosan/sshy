@@ -2,11 +2,14 @@ use std::result;
 use thiserror::Error;
 
 use sqlx::Error as SqlxError;
+use inquire::error::InquireError;
 
 pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug, Error)]
 pub enum Error {
+  #[error("[input-cli] {0}")]
+  InputCli(String),
   #[error("[database] {0}")]
   DB(String),
   #[error("[internal] {0}")]
@@ -22,6 +25,12 @@ pub enum Error {
 impl From<SqlxError> for Error {
   fn from(e: SqlxError) -> Self {
     Error::DB(format!("{}", e))
+  }
+}
+
+impl From<InquireError> for Error {
+  fn from(e: InquireError) -> Self {
+    Error::InputCli(format!("{}", e))
   }
 }
 

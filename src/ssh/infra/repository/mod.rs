@@ -9,10 +9,12 @@ use super::super::domain::SshStore;
 
 use crate::ssh::{
   dtos::{
-    CreateGroupDto, CreateServerDto, UpdateGroupDto
+    CreateGroupDto, UpdateGroupDto,
+    CreateServerDto,
+    CreateKeyPairDto
   },
   domain:: {
-    Server, Group
+    Server, Group, KeyPair
   }
 };
 
@@ -62,7 +64,7 @@ impl <'a> SshStore for SqliteStore<'a> {
     Ok(())
   }
 
-  async fn create_group(&self, dto: CreateGroupDto) -> crate::error::Result<Group> {
+  async fn create_group(&self, dto: CreateGroupDto) -> Result<Group> {
     let parent_id: Option<String> = match dto.parent_id {
       Some(s) => Some(s.to_string()),
       None => None
@@ -88,14 +90,7 @@ impl <'a> SshStore for SqliteStore<'a> {
 
   }
 
-  async fn get_by_id(&self, id: Uuid) -> Result<Group> {
-    let q = r#"SELECT id, parent_id, name FROM sshy_group WHERE id = ?"#;
-    let row = sqlx::query(q).bind(id.to_string()).fetch_one(self.pool).await?;
-    let g = group_from_row(&row);
-    Ok(g)
-  }
-
-  async fn list_groups(&self, id: &Option<uuid::Uuid>) -> crate::error::Result<Vec<Group>> {
+  async fn list_groups(&self, id: &Option<uuid::Uuid>) -> Result<Vec<Group>> {
     let rows;
     if let Some(group_id) = id {
       let q = r#"SELECT id, parent_id, name FROM sshy_group WHERE parent_id = ?"#;
@@ -110,15 +105,43 @@ impl <'a> SshStore for SqliteStore<'a> {
     Ok(res)
   }
 
-  fn update_group(id: uuid::Uuid, dto: UpdateGroupDto) -> crate::error::Result<Group> {
+  async fn get_group_by_id(&self, id: Uuid) -> Result<Option<Group>> {
+    let q = r#"SELECT id, parent_id, name FROM sshy_group WHERE id = ?"#;
+    if let Some(row) = sqlx::query(q).bind(id.to_string()).fetch_optional(self.pool).await? {
+      let g = group_from_row(&row);
+      return Ok(Some(g));
+    } 
+    Ok(None)
+  }
+
+  fn update_group(id: uuid::Uuid, dto: UpdateGroupDto) -> Result<Group> {
     todo!()
   }
 
-  fn create_server(dto: CreateServerDto) -> crate::error::Result<Server> {
-    todo!()
+  async fn create_server(&self, dto: CreateServerDto) -> Result<Server> {
+    let query = r#"
+      INSERT INTO sshy_server 
+        (id, group_id, name, hostname, port, user) 
+      VALUES 
+        (?, ?, ?, ?, ?, ?)
+      RETURNING
+        id, group_id, name, hostname, port, user
+    "#;
+
+    let row = sqlx::query(query)
+      .bind(dto.id.to_string())
+      .bind(dto.group_id.to_string())
+      .bind(dto.name)
+      .bind(dto.host)
+      .bind(dto.port)
+      .bind(dto.user)
+      .fetch_one(self.pool)
+      .await?;
+
+    return Ok(server_from_row(&row))
   }
 
-  async fn list_servers(&self, group_id: uuid::Uuid) -> crate::error::Result<Vec<crate::ssh::domain::Server>> {
+  async fn list_servers(&self, group_id: uuid::Uuid) -> Result<Vec<Server>> {
     let q = r#"
       SELECT 
         id server, name, hostname, port, user
@@ -133,13 +156,31 @@ impl <'a> SshStore for SqliteStore<'a> {
     Ok(res)
   }
 
-  fn update_server(id: uuid::Uuid, dto: crate::ssh::dtos::CreateServerDto) -> crate::error::Result<crate::ssh::domain::Server> {
+  fn update_server(id: uuid::Uuid, dto: crate::ssh::dtos::CreateServerDto) -> Result<Server> {
     todo!()
   }
 
-  fn update_server_keys(id: uuid::Uuid, dto: crate::ssh::dtos::KeyDto) -> crate::error::Result<crate::ssh::domain::Server> {
-    todo!()
+  async fn save_key_pair(&self, dto: CreateKeyPairDto) -> Result<KeyPair> {
+    let query = r#"
+      INSERT INTO sshy_key_pair 
+        (id, server_id, public_key, private_key) 
+      VALUES 
+        (?, ?, ?, ?)
+      RETURNING
+        id, server_id, public_key, private_key
+    "#;
+
+    let row = sqlx::query(query)
+      .bind(dto.id.to_string())
+      .bind(dto.server_id.to_string())
+      .bind(dto.public)
+      .bind(dto.private)
+      .fetch_one(self.pool)
+      .await?;
+
+    Ok(keypair_from_row(&row))
   }
+
 }
 
 fn group_from_row(row: &SqliteRow) -> Group {
@@ -164,4 +205,14 @@ fn server_from_row(row: &SqliteRow) -> Server {
   s.port = row.get(4);
   s.user = row.get(5);
   s
+}
+
+fn keypair_from_row(row: &SqliteRow) -> KeyPair {
+  let mut key_pair = KeyPair::default();
+  key_pair.id = Uuid::from_str(row.get(0)).unwrap();
+  key_pair.server_id = Uuid::from_str(row.get(1)).unwrap();
+  key_pair.public = row.get(2);
+  key_pair.private = row.get(3);
+
+  key_pair
 }

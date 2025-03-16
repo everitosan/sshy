@@ -7,7 +7,7 @@ pub mod options;
 pub struct ServerPrompt {
   pub name: String,
   pub host: String,
-  pub port: u64,
+  pub port: u32,
   pub user: String,
 }
 
@@ -21,7 +21,7 @@ pub fn ask() -> Result<ServerPrompt>{
   let s = ServerPrompt {
     name: Text::new(&name_message).prompt()?,
     host: Text::new(&host_message).prompt()?,
-    port: inquire::prompt_u64(port_message)?,
+    port: inquire::prompt_u32(port_message)?,
     user: Text::new(&user_message).prompt()?
   };
 

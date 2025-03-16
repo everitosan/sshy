@@ -31,13 +31,6 @@ DROP TABLE IF EXISTS sshy_key_pair;
 CREATE TABLE sshy_key_pair (
   id TEXT NOT NULL PRIMARY KEY,
   server_id TEXT NOT NULL,
-  FOREIGN KEY (server_id) REFERENCES sshy_server(id) ON DELETE CASCADE
-);
-
-DROP TABLE IF EXISTS sshy_key;
-CREATE TABLE sshy_key (
-  type TEXT CHECK(type IN ('public', 'private')) NOT NULL,
-  pair_id TEXT NOT NULL,
-  content TEXT NOT NULL,
-  FOREIGN KEY (pair_id) REFERENCES sshy_key_pair(id) ON DELETE CASCADE
+  public_key TEXT NOT NULL,
+  private_key TEXT NOT NULL
 );

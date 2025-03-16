@@ -1,13 +1,22 @@
 use uuid::Uuid;
-use super::domain::KeyType;
+
+
+#[derive(Default)]
+pub struct CreateKeyPairDto {
+  pub id: Uuid,
+  pub server_id: Uuid,
+  pub public: String,
+  pub private: String
+}
 
 #[derive(Default)]
 pub struct CreateServerDto {
+  pub id: Uuid,
   pub group_id: Uuid,
   pub name: String,
-  pub ip: String,
   pub host: String,
-  pub port: u8
+  pub port: u32,
+  pub user: String
 }
 
 
@@ -22,10 +31,4 @@ pub struct CreateGroupDto {
 pub struct UpdateGroupDto {
   pub parent_id: Option<Uuid>,
   pub name: Option<String>
-}
-
-#[derive(Default)]
-pub struct KeyDto {
-  pub key_type: KeyType,
-  pub content: String,
 }

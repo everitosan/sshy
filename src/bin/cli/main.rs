@@ -11,15 +11,13 @@ use clap::{Parser, Subcommand};
 
 use sshy::{
   config::Config,
-  ssh::{app::{create_group, get_group, list_groups}, domain::{Group, SshStore}, infra::repository::{DBCreateResutl, SqliteStore}},
+  ssh::{app::{self, server::CreaterServer}, domain::{Group, SshStore}, infra::repository::{DBCreateResutl, SqliteStore}},
 };
 
 use parser::{
   group::{GroupActions, GroupCommand},
   server::ServerCommmand
 };
-
-
 
 
 
@@ -59,13 +57,13 @@ async fn main() -> Result<(), ()> {
     }
   };
 
-  // let pass = match prompt::password::ask(config.db_name.exists()) {
-  //   Ok(p) => p,
-  //   Err(e) => {
-  //     println!("{}", e);
-  //     return Ok(())
-  //   }
-  // };
+  let pass = match prompt::password::ask(config.db_name.exists()) {
+    Ok(p) => p,
+    Err(e) => {
+      println!("{}", e);
+      return Ok(())
+    }
+  };
 
   // DB Instance
   let db_res = match SqliteStore::try_create(&config.db_name).await {
@@ -125,7 +123,7 @@ async fn main() -> Result<(), ()> {
     let mut current_group: Option<Group> = None;
 
     loop {
-      match list_groups(&sqlite_repo, &current_group).await {
+      match app::group::list(&sqlite_repo, &current_group).await {
         Ok(groups) => {
           // Set options
           let mut options = prompt::group::transform::groups_as_vec(&groups);
@@ -150,8 +148,11 @@ async fn main() -> Result<(), ()> {
               prompt::group::options::ExtraOptions::PreviuosGroup => {
                 if let Some(g) = &current_group {
                   if let Some(parent) = g.parent_id {
-                    let previous_group = get_group(&sqlite_repo, parent).await.unwrap();
-                    current_group = Some(previous_group)
+                    if let Ok(prev) = app::group::get(&sqlite_repo, parent).await {
+                      if let Some(previous_group) = prev {
+                        current_group = Some(previous_group)
+                      }
+                    }
                   } else {
                     current_group = None
                   }
@@ -164,17 +165,26 @@ async fn main() -> Result<(), ()> {
                     continue;
                   }
                 };
-                create_group(&sqlite_repo, &name, &current_group).await.unwrap();
+                app::group::create(&sqlite_repo, &name, &current_group).await.unwrap();
                 let st = time::Duration::from_millis(100);
                 sleep(st);
               },
               prompt::group::options::ExtraOptions::AddServer => {
-                let server_prompt = match prompt::server::ask() {
-                  Ok(s) => s,
+                let server = match prompt::server::ask() {
+                  Ok(sp) => {
+                    CreaterServer {
+                      name: sp.name,
+                      group_id: current_group.clone().unwrap().id,
+                      host: sp.host,
+                      port: sp.port,
+                      user: sp.user
+                    }
+                  },
                   Err(_) => {
                     continue;
                   }
                 };
+                app::server::create(&sqlite_repo, server, &config.ssh_path.clone(), &pass).await.unwrap();
               },
               _ => {}
             };

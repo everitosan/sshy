@@ -7,6 +7,7 @@ CREATE TABLE sshy_group (
   id TEXT NOT NULL PRIMARY KEY,
   parent_id TEXT,
   name TEXT NOT NULL,
+  deleted Bool DEFAULT false,
   FOREIGN KEY (parent_id) REFERENCES sshy_group(id) ON DELETE CASCADE
 );
 
@@ -20,6 +21,7 @@ CREATE TABLE sshy_server (
   hostname TEXT NOT NULL,
   port INTEGER NOT NULL,
   user TEXT NOT NULL,
+  deleted Bool DEFAULT false,
   FOREIGN KEY (group_id) REFERENCES sshy_group(id) ON DELETE CASCADE
 );
 

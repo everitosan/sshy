@@ -45,7 +45,6 @@ impl Config {
     // create dir
     fs::create_dir_all(&path.parent().unwrap())
       .map_err(|e| Error::FsError(format!("could not create config dir: {}", e)))?;
-    println!("{:?}", path);
     // create and write file
     let mut file = File::create(path)
       .map_err(|e| Error::FsError(format!("could not create config file: {}", e)))?;

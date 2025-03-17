@@ -29,6 +29,6 @@ pub struct CreateGroupDto {
 
 #[derive(Default)]
 pub struct UpdateGroupDto {
-  pub parent_id: Option<Uuid>,
-  pub name: Option<String>
+  pub parent_id: Uuid,
+  pub name: String
 }

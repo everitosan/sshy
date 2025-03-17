@@ -3,6 +3,7 @@ use inquire::Text;
 use sshy::error::Result;
 
 pub mod options;
+pub mod transform;
 
 pub struct ServerPrompt {
   pub name: String,

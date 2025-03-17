@@ -92,30 +92,68 @@ impl <'a> SshStore for SqliteStore<'a> {
 
   async fn list_groups(&self, id: &Option<uuid::Uuid>) -> Result<Vec<Group>> {
     let rows;
+    let mut query = String::from(r#"
+      SELECT 
+        g.id, g.parent_id, g.name, s.id, s.name, s.hostname, s.port, s.user
+      FROM 
+        sshy_group g 
+      LEFT JOIN 
+        sshy_server s ON s.group_id = g.id 
+      WHERE g.parent_id
+    "#);
+
     if let Some(group_id) = id {
-      let q = r#"SELECT id, parent_id, name FROM sshy_group WHERE parent_id = ?"#;
-      rows = sqlx::query(q).bind(group_id.to_string()).fetch_all(self.pool).await?;
+      query += "= ?"; 
+      rows = sqlx::query(&query).bind(group_id.to_string()).fetch_all(self.pool).await?;
     
     } else {
-      let q = r#"SELECT id, parent_id, name FROM sshy_group WHERE parent_id IS NULL"#;
-      rows = sqlx::query(q).fetch_all(self.pool).await?;
+      query += " IS NULL";
+      rows = sqlx::query(&query).fetch_all(self.pool).await?;
     }
 
-    let res: Vec<Group> = rows.iter().map(|r| group_from_row(r)).collect();
+    let res: Vec<Group> = groups_servers_from_row(&rows);
     Ok(res)
   }
 
   async fn get_group_by_id(&self, id: Uuid) -> Result<Option<Group>> {
-    let q = r#"SELECT id, parent_id, name FROM sshy_group WHERE id = ?"#;
-    if let Some(row) = sqlx::query(q).bind(id.to_string()).fetch_optional(self.pool).await? {
-      let g = group_from_row(&row);
-      return Ok(Some(g));
-    } 
+    let q = r#"
+      SELECT 
+        g.id, g.parent_id, g.name, s.id, s.name, s.hostname, s.port, s.user
+      FROM 
+        sshy_group g 
+      LEFT JOIN 
+        sshy_server s ON s.group_id = g.id 
+      WHERE g.id = ?"#;
+
+    let rows = sqlx::query(q).bind(id.to_string()).fetch_all(self.pool).await?;
+    let res: Vec<Group> = groups_servers_from_row(&rows);
+
+    if let Some(first_group) = res.get(0) {
+      return Ok(Some(first_group.clone()))
+    }
     Ok(None)
   }
 
-  fn update_group(id: uuid::Uuid, dto: UpdateGroupDto) -> Result<Group> {
-    todo!()
+  async fn update_group(&self, id: uuid::Uuid, dto: UpdateGroupDto) -> Result<Group> {
+    let query = r#"
+      UPDATE sshy_group SET
+        (name, parent_id) 
+      VALUES 
+        (?, ?)
+      WHERE
+        id = ?
+      RETURNING
+        id, parent_id, name
+    "#;
+
+    let row = sqlx::query(query)
+      .bind(dto.name)
+      .bind(dto.parent_id.to_string())
+      .bind(id.to_string())
+      .fetch_one(self.pool)
+      .await?;
+
+    return Ok(group_from_row(&row))
   }
 
   async fn create_server(&self, dto: CreateServerDto) -> Result<Server> {
@@ -181,6 +219,47 @@ impl <'a> SshStore for SqliteStore<'a> {
     Ok(keypair_from_row(&row))
   }
 
+}
+
+
+fn groups_servers_from_row(rows: &Vec<SqliteRow>) -> Vec<Group> {
+
+  let mut res: Vec<Group> = vec![];
+  let mut servers: Vec<Server> = vec![];
+  let mut last_group = Group::default();
+
+  for row in rows {
+    let group_id: String = row.get(0);
+    if group_id != last_group.id.to_string() {
+      if last_group.id.to_string() != Uuid::default().to_string()  {
+        last_group.servers = servers;
+        servers = vec![];
+        res.push(last_group);
+      }
+      // create group
+      last_group = group_from_row(row);
+    }
+    // Work over servers
+    let server_id: String = row.get(3);
+    if !server_id.is_empty() {
+      let tmp_server = Server {
+        id: Uuid::from_str(row.get(3)).unwrap(), 
+        group_id: last_group.id.clone(),
+        name: row.get(4),
+        hostname: row.get(5),
+        port: row.get(6),
+        user: row.get(7)
+      };
+      servers.push(tmp_server);
+    }
+  }
+
+  if last_group.id.to_string() != Uuid::default().to_string() {
+    last_group.servers = servers;
+    res.push(last_group);    
+  }
+
+  res
 }
 
 fn group_from_row(row: &SqliteRow) -> Group {

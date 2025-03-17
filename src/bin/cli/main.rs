@@ -15,7 +15,7 @@ use sshy::{
 };
 
 use parser::{
-  group::{GroupActions, GroupCommand},
+  group::GroupCommand,
   server::ServerCommmand
 };
 
@@ -127,11 +127,18 @@ async fn main() -> Result<(), ()> {
         Ok(groups) => {
           // Set options
           let mut options = prompt::group::transform::groups_as_vec(&groups);
-          options.push("-------------------------------------".grey());
-          if let None = current_group {
-            for op in prompt::group::options::ROOT_OPTS { options.push(op.to_string()); }
-          } else {
+          
+          if let Some(cg) = &current_group {
+            options.extend(prompt::server::transform::server_as_vec(&cg.servers));
+            if options.len() > 0 {
+              options.push("-------------------------------------".grey());
+            }
             for op in prompt::group::options::OPTS { options.push(op.to_string()); }
+          } else {
+            if options.len() > 0 {
+              options.push("-------------------------------------".grey());
+            }
+            for op in prompt::group::options::ROOT_OPTS { options.push(op.to_string()); }
           }
 
           // Ask for option
@@ -184,16 +191,32 @@ async fn main() -> Result<(), ()> {
                     continue;
                   }
                 };
-                app::server::create(&sqlite_repo, server, &config.ssh_path.clone(), &pass).await.unwrap();
+                let server = app::server::create(&sqlite_repo, server, &config.ssh_path.clone(), &pass).await.unwrap();
+                // update current group
+                current_group = app::group::get(&sqlite_repo, server.group_id).await.unwrap();
               },
               _ => {}
             };
+          } else if let Ok(_predefined_server_option) = prompt::server::options::ExtraOptions::from_str(&str_opt) {
+
           } else {
-            // If select a group, enter o that group
+            // If select a group, enter to that group
             if let Some(group) = groups.iter().find(|g| str_opt == prompt::group::transform::group_as_str(g)) {
               current_group = Some(group.to_owned());
             }
-            
+            // if select a server, show options server
+            if let Some(server) = current_group.clone().unwrap().servers.iter().find(|s| str_opt == prompt::server::transform::sever_as_str(s)) {
+              println!("Hostname: {}", server.hostname.clone().magenta());
+              println!("Port: {}", server.port.clone());
+              println!("User: {}", server.user.clone().magenta());
+              // Ask for option
+              let _str_server_opt = match Select::new("", prompt::server::options::OPTS.to_vec()).prompt() {
+                Ok(o) => o,
+                Err(_) => {
+                  continue;
+                }
+              };
+            }
           }
         },
         Err(e) => {

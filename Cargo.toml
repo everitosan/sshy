@@ -14,7 +14,7 @@ serde = "1.0.114"
 serde_json = "1.0.138"
 serde_derive = "1.0.114"
 # uuid
-uuid = {version="1.15.0", features = ["v4"]}
+uuid = {version="1.15.0", features = ["v4", "serde"]}
 # utils
 dirs = "6.0.0"
 

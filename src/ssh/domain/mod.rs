@@ -1,3 +1,4 @@
+use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
 use async_trait::async_trait;
 
@@ -13,7 +14,7 @@ pub struct KeyPair {
   pub private: String
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct Server {
   pub id: Uuid,
   pub group_id: Uuid,
@@ -23,13 +24,13 @@ pub struct Server {
   pub user: String
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct Group {
   pub id: Uuid,
   pub parent_id: Option<Uuid>,
   pub name:  String,
   pub group: Option<Vec<Group>>,
-  pub servers: Option<Vec<Server>>
+  pub servers: Vec<Server>
 }
 
 #[async_trait]
@@ -38,7 +39,7 @@ pub trait SshStore {
   async fn create_group(&self, dto: dtos::CreateGroupDto) -> Result<Group>;
   async fn list_groups(&self, id: &Option<Uuid>) -> Result<Vec<Group>>;
   async fn get_group_by_id(&self, id: Uuid) -> Result<Option<Group>>;
-  fn update_group(id: Uuid, dto: dtos::UpdateGroupDto) -> Result<Group>;
+  async fn update_group(&self, id: Uuid, dto: dtos::UpdateGroupDto) -> Result<Group>;
   async fn create_server(&self, dto: dtos::CreateServerDto) -> Result<Server>;
   async fn list_servers(&self, group_id: Uuid) -> Result<Vec<Server>>;
   fn update_server(id: Uuid, dto: dtos::CreateServerDto) -> Result<Server>;

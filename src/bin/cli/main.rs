@@ -121,6 +121,7 @@ async fn main() -> Result<(), ()> {
   } else {
     // Interactive mode
     let mut current_group: Option<Group> = None;
+    // let mut current_server: Option<Server> = None;
 
     loop {
       match app::group::list(&sqlite_repo, &current_group).await {
@@ -197,8 +198,6 @@ async fn main() -> Result<(), ()> {
               },
               _ => {}
             };
-          } else if let Ok(_predefined_server_option) = prompt::server::options::ExtraOptions::from_str(&str_opt) {
-
           } else {
             // If select a group, enter to that group
             if let Some(group) = groups.iter().find(|g| str_opt == prompt::group::transform::group_as_str(g)) {
@@ -206,12 +205,22 @@ async fn main() -> Result<(), ()> {
             }
             // if select a server, show options server
             if let Some(server) = current_group.clone().unwrap().servers.iter().find(|s| str_opt == prompt::server::transform::sever_as_str(s)) {
+              // current_server = Some(server.clone());
               println!("Hostname: {}", server.hostname.clone().magenta());
               println!("Port: {}", server.port.clone());
               println!("User: {}", server.user.clone().magenta());
               // Ask for option
-              let _str_server_opt = match Select::new("", prompt::server::options::OPTS.to_vec()).prompt() {
-                Ok(o) => o,
+              match Select::new("", prompt::server::options::OPTS.to_vec()).prompt() {
+                Ok(predefined_server_option) =>  {
+                  match predefined_server_option {
+                    prompt::server::options::ExtraOptions::Connect => {
+                      app::server::connect(&sqlite_repo, server, &config.ssh_path.clone()).await.unwrap();
+                    },
+                    prompt::server::options::ExtraOptions::EditServer => todo!(),
+                    prompt::server::options::ExtraOptions::DeleteServer => todo!(),
+                    prompt::server::options::ExtraOptions::Back => {},
+                  }
+                },
                 Err(_) => {
                   continue;
                 }

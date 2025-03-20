@@ -159,7 +159,7 @@ impl <'a> SshStore for SqliteStore<'a> {
   async fn list_servers(&self, group_id: uuid::Uuid) -> Result<Vec<Server>> {
     let q = r#"
       SELECT 
-        id server, name, hostname, port, user
+        id, server, name, hostname, port, user
       FROM 
         sshy_server
       WHERE
@@ -209,6 +209,24 @@ impl <'a> SshStore for SqliteStore<'a> {
       .bind(dto.server_id.to_string())
       .bind(dto.public)
       .bind(dto.private)
+      .fetch_one(self.pool)
+      .await?;
+
+    Ok(keypair_from_row(&row))
+  }
+
+  async fn get_keys_by_server_id(&self, id: Uuid) -> Result<KeyPair> {
+    let q = r#"
+      SELECT 
+         id, server_id, public_key, private_key
+      FROM 
+        sshy_key_pair
+      WHERE
+        server_id = ?
+    "#;
+
+    let row = sqlx::query(q)
+      .bind(id.to_string())
       .fetch_one(self.pool)
       .await?;
 

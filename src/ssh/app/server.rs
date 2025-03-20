@@ -19,6 +19,14 @@ pub struct CreaterServer {
   pub user: String,
 }
 
+
+fn get_keys_path(ssh_path: &PathBuf) -> PathBuf{
+  let mut new_path = ssh_path.clone();
+  new_path.push("sshy_keys");
+  new_path
+}
+
+
 pub async fn create<T: SshStore>(store: &T, data: CreaterServer, ssh_path: &PathBuf, password: &str) -> Result<Server> {
   let server_id = Uuid::new_v4();
   let keypair_id = Uuid::new_v4();
@@ -37,8 +45,7 @@ pub async fn create<T: SshStore>(store: &T, data: CreaterServer, ssh_path: &Path
   };
 
   // first create keys and try to register in remote sever to avoid writting into db garbage
-  let mut key_path = ssh_path.clone();
-  key_path.push("sshy_keys");
+  let key_path = get_keys_path(ssh_path);
 
   match create_keys(&keypair_id.to_string(), &key_path, password) {
     Ok((public, private)) => {
@@ -63,6 +70,40 @@ pub async fn create<T: SshStore>(store: &T, data: CreaterServer, ssh_path: &Path
 
 }
 
+
+pub async fn connect<T: SshStore>(store: &T, server: &Server, ssh_path: &PathBuf) -> Result<()> {
+  let dst = format!("{}@{}", server.user, server.hostname);
+
+  let keypair = store.get_keys_by_server_id(server.id).await?;
+  
+  let mut key_path = get_keys_path(ssh_path);
+  key_path.push(keypair.id.to_string());
+
+  if !key_path.exists() {
+    let mut file = File::create(&key_path)
+      .map_err(|e| Error::FsError(format!("could not re-create private key file: {}", e)))?;
+    file.write_all(keypair.private.as_bytes())
+      .map_err(|e| Error::FsError(format!("could not re-write private key file: {}", e)))?;
+  }
+
+  let child = Command::new("ssh")
+    .arg(&dst)
+    .arg("-p")
+    .arg(format!("{}", server.port))
+    .arg("-i")
+    .arg(format!("{}", key_path.to_str().unwrap().trim()))
+    .spawn()
+    .map_err(|e| Error::Internal(format!("could not create remote command {}", e)))?;
+
+  let output = child.wait_with_output()
+    .map_err(|e| Error::Internal(format!("could connect to server {}", e)))?;
+
+  if !output.status.success() {
+    return Err(Error::Command { bin: "ssh".to_owned(), message: format!("stderr of remote connection is {}", String::from_utf8_lossy(&output.stderr)) })
+  }
+
+  Ok(())
+}
 
 pub fn remote_execute(server: &CreateServerDto, script: &str, variables: Option<Vec<String>>) -> Result<String> {
   let dst = format!("{}@{}", server.user, server.host);

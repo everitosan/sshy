@@ -64,6 +64,31 @@ impl <'a> SshStore for SqliteStore<'a> {
     Ok(())
   }
 
+  async fn list_groups(&self, id: &Option<uuid::Uuid>) -> Result<Vec<Group>> {
+    let rows;
+    let mut query = String::from(r#"
+      SELECT 
+        g.id, g.parent_id, g.name, s.id, s.name, s.hostname, s.port, s.user
+      FROM 
+        sshy_group g 
+      LEFT JOIN 
+        sshy_server s ON s.group_id = g.id 
+      WHERE g.parent_id
+    "#);
+
+    if let Some(group_id) = id {
+      query += "= ?"; 
+      rows = sqlx::query(&query).bind(group_id.to_string()).fetch_all(self.pool).await?;
+    
+    } else {
+      query += " IS NULL";
+      rows = sqlx::query(&query).fetch_all(self.pool).await?;
+    }
+
+    let res: Vec<Group> = groups_servers_from_row(&rows);
+    Ok(res)
+  }
+
   async fn create_group(&self, dto: CreateGroupDto) -> Result<Group> {
     let parent_id: Option<String> = match dto.parent_id {
       Some(s) => Some(s.to_string()),
@@ -88,31 +113,6 @@ impl <'a> SshStore for SqliteStore<'a> {
 
     return Ok(group_from_row(&row))
 
-  }
-
-  async fn list_groups(&self, id: &Option<uuid::Uuid>) -> Result<Vec<Group>> {
-    let rows;
-    let mut query = String::from(r#"
-      SELECT 
-        g.id, g.parent_id, g.name, s.id, s.name, s.hostname, s.port, s.user
-      FROM 
-        sshy_group g 
-      LEFT JOIN 
-        sshy_server s ON s.group_id = g.id 
-      WHERE g.parent_id
-    "#);
-
-    if let Some(group_id) = id {
-      query += "= ?"; 
-      rows = sqlx::query(&query).bind(group_id.to_string()).fetch_all(self.pool).await?;
-    
-    } else {
-      query += " IS NULL";
-      rows = sqlx::query(&query).fetch_all(self.pool).await?;
-    }
-
-    let res: Vec<Group> = groups_servers_from_row(&rows);
-    Ok(res)
   }
 
   async fn get_group_by_id(&self, id: Uuid) -> Result<Option<Group>> {
@@ -156,6 +156,21 @@ impl <'a> SshStore for SqliteStore<'a> {
     return Ok(group_from_row(&row))
   }
 
+  async fn list_servers(&self, group_id: uuid::Uuid) -> Result<Vec<Server>> {
+    let q = r#"
+      SELECT 
+        id server, name, hostname, port, user
+      FROM 
+        sshy_server
+      WHERE
+        s.id = ?
+    "#;
+    let rows= sqlx::query(q).bind(group_id.to_string()).fetch_all(self.pool).await?;
+    let res: Vec<Server> = rows.iter().map(|r| server_from_row(r)).collect();
+
+    Ok(res)
+  }
+
   async fn create_server(&self, dto: CreateServerDto) -> Result<Server> {
     let query = r#"
       INSERT INTO sshy_server 
@@ -179,25 +194,6 @@ impl <'a> SshStore for SqliteStore<'a> {
     return Ok(server_from_row(&row))
   }
 
-  async fn list_servers(&self, group_id: uuid::Uuid) -> Result<Vec<Server>> {
-    let q = r#"
-      SELECT 
-        id server, name, hostname, port, user
-      FROM 
-        sshy_server
-      WHERE
-        s.id = ?
-    "#;
-    let rows= sqlx::query(q).bind(group_id.to_string()).fetch_all(self.pool).await?;
-    let res: Vec<Server> = rows.iter().map(|r| server_from_row(r)).collect();
-
-    Ok(res)
-  }
-
-  fn update_server(id: uuid::Uuid, dto: crate::ssh::dtos::CreateServerDto) -> Result<Server> {
-    todo!()
-  }
-
   async fn save_key_pair(&self, dto: CreateKeyPairDto) -> Result<KeyPair> {
     let query = r#"
       INSERT INTO sshy_key_pair 
@@ -219,8 +215,13 @@ impl <'a> SshStore for SqliteStore<'a> {
     Ok(keypair_from_row(&row))
   }
 
+  fn update_server(id: uuid::Uuid, dto: crate::ssh::dtos::CreateServerDto) -> Result<Server> {
+    todo!()
+  }
+
 }
 
+// auxiliar functions
 
 fn groups_servers_from_row(rows: &Vec<SqliteRow>) -> Vec<Group> {
 

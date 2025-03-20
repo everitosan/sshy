@@ -22,11 +22,12 @@ pub struct CreaterServer {
 pub async fn create<T: SshStore>(store: &T, data: CreaterServer, ssh_path: &PathBuf, password: &str) -> Result<Server> {
   let server_id = Uuid::new_v4();
   let keypair_id = Uuid::new_v4();
+
   if let None = store.get_group_by_id(data.group_id).await? {
     return Err(Error::Integrity(format!("Group {} does not exists", data.group_id)) );
   }
-
-  let dto = CreateServerDto {
+  
+  let server_dto = CreateServerDto {
     id: server_id,
     name: data.name,
     group_id: data.group_id,
@@ -35,35 +36,36 @@ pub async fn create<T: SshStore>(store: &T, data: CreaterServer, ssh_path: &Path
     user: data.user
   };
 
-  let server = store.create_server(dto).await?;
-
+  // first create keys and try to register in remote sever to avoid writting into db garbage
   let mut key_path = ssh_path.clone();
   key_path.push("sshy_keys");
 
-  let keypair = match create_keys(&keypair_id.to_string(), &key_path, password) {
+  match create_keys(&keypair_id.to_string(), &key_path, password) {
     Ok((public, private)) => {
       let keypair = CreateKeyPairDto {
         id: keypair_id,
         server_id: server_id,
         public, private
       };
-      store.save_key_pair(keypair).await?
+
+      // Register pub key in remote server
+      let variables: Option<Vec<String>> = Some(vec![format!("PUBKEY='{}'", keypair.public.trim())]);
+      remote_execute(&server_dto, REGISTER_KEY_SH, variables)?;
+      // if sucess, we save server, later keys due to fk dependency and return server
+      let server = store.create_server(server_dto).await?;
+      store.save_key_pair(keypair).await?;
+      return  Ok(server)
     },
     Err(e) => {
       return Err(Error::Internal(format!("ssh-keygen process {}", e)))
     }
-  };
+  }
 
-  let variables: Option<Vec<String>> = Some(vec![format!("PUBKEY='{}'", keypair.public.trim())]);
-  // let script_path = get_or_greate_register_script(ssh_path)?;
-  remote_execute(&server, REGISTER_KEY_SH, variables)?;
-
-  return  Ok(server)
 }
 
 
-pub fn remote_execute(server: &Server, script: &str, variables: Option<Vec<String>>) -> Result<String> {
-  let dst = format!("{}@{}", server.user, server.hostname);
+pub fn remote_execute(server: &CreateServerDto, script: &str, variables: Option<Vec<String>>) -> Result<String> {
+  let dst = format!("{}@{}", server.user, server.host);
   let train_vars = match variables {
     Some(vars) => {
       let train = vars.join(" ");

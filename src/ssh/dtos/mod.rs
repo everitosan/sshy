@@ -21,6 +21,16 @@ pub struct CreateServerDto {
 
 
 #[derive(Default)]
+pub struct UpdateServerDto {
+  pub group_id: Uuid,
+  pub name: String,
+  pub host: String,
+  pub port: u32,
+  pub user: String
+}
+
+
+#[derive(Default)]
 pub struct CreateGroupDto {
   pub id: Uuid,
   pub parent_id: Option<Uuid>,

@@ -42,6 +42,6 @@ pub trait SshStore {
   async fn update_group(&self, id: Uuid, dto: dtos::UpdateGroupDto) -> Result<Group>;
   async fn create_server(&self, dto: dtos::CreateServerDto) -> Result<Server>;
   async fn list_servers(&self, group_id: Uuid) -> Result<Vec<Server>>;
-  fn update_server(id: Uuid, dto: dtos::CreateServerDto) -> Result<Server>;
+  async fn update_server(&self, id: Uuid, dto: dtos::UpdateServerDto) -> Result<Server>;
   async fn save_key_pair(&self, dto: dtos::CreateKeyPairDto) -> Result<KeyPair>;
 }

@@ -215,8 +215,31 @@ impl <'a> SshStore for SqliteStore<'a> {
     Ok(keypair_from_row(&row))
   }
 
-  fn update_server(id: uuid::Uuid, dto: crate::ssh::dtos::CreateServerDto) -> Result<Server> {
-    todo!()
+  async fn update_server(&self, id: uuid::Uuid, dto: crate::ssh::dtos::UpdateServerDto) -> Result<Server> {
+
+    let query = r#"
+      UPDATE sshy_server SET
+        (group_id, name, host, port, user) 
+      VALUES 
+        (?, ?, ?, ?, ?)
+      WHERE
+        id = ?
+      RETURNING
+        id, group_id, name, host, port, user
+    "#;
+
+    let row = sqlx::query(query)
+      .bind(dto.group_id.to_string())
+      .bind(dto.name)
+      .bind(dto.host)
+      .bind(dto.port)
+      .bind(dto.user)
+      .bind(id.to_string())
+      .fetch_one(self.pool)
+      .await?;
+
+    return Ok(server_from_row(&row))
+
   }
 
 }

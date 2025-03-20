@@ -1,4 +1,4 @@
-use std::{fs::{create_dir_all, File}, io::Read, path::PathBuf, process::Command};
+use std::{fs::{create_dir_all, File}, io::{Read, Write}, path::PathBuf, process::{Command, Stdio}};
 
 
 use log::debug;
@@ -8,6 +8,8 @@ use crate::{
   error::{Error, Result},
   ssh::{domain::{Server, SshStore}, dtos::{CreateKeyPairDto, CreateServerDto}}
 };
+
+const REGISTER_KEY_SH: &str = include_str!("register_key.sh");
 
 pub struct CreaterServer {
   pub name: String,
@@ -33,25 +35,72 @@ pub async fn create<T: SshStore>(store: &T, data: CreaterServer, ssh_path: &Path
     user: data.user
   };
 
-  let saved = store.create_server(dto).await?;
+  let server = store.create_server(dto).await?;
 
   let mut key_path = ssh_path.clone();
   key_path.push("sshy_keys");
 
-  match create_keys(&keypair_id.to_string(), &key_path, password) {
+  let keypair = match create_keys(&keypair_id.to_string(), &key_path, password) {
     Ok((public, private)) => {
       let keypair = CreateKeyPairDto {
         id: keypair_id,
         server_id: server_id,
         public, private
       };
-      store.save_key_pair(keypair).await?;
-      return  Ok(saved)
+      store.save_key_pair(keypair).await?
     },
     Err(e) => {
       return Err(Error::Internal(format!("ssh-keygen process {}", e)))
     }
   };
+
+  let variables: Option<Vec<String>> = Some(vec![format!("PUBKEY='{}'", keypair.public.trim())]);
+  // let script_path = get_or_greate_register_script(ssh_path)?;
+  remote_execute(&server, REGISTER_KEY_SH, variables)?;
+
+  return  Ok(server)
+}
+
+
+pub fn remote_execute(server: &Server, script: &str, variables: Option<Vec<String>>) -> Result<String> {
+  let dst = format!("{}@{}", server.user, server.hostname);
+  let train_vars = match variables {
+    Some(vars) => {
+      let train = vars.join(" ");
+      format!("{}", train.trim())
+    },
+    None => {
+      String::from("")
+    }
+  };
+
+  debug!("ssh {} -p {} {} bash -s ", &dst, server.port, &train_vars);
+
+  let mut child = Command::new("ssh")
+    .arg(&dst)
+    .arg("-p")
+    .arg(format!("{}", server.port))
+    .arg(format!("{} bash -s", &train_vars))
+    .stdin(Stdio::piped())
+    .stdout(Stdio::piped())
+    .spawn()
+    .map_err(|e| Error::Internal(format!("could not create remote command {}", e)))?;
+
+  if let Some(mut stdin) = child.stdin.take() {
+    stdin.write_all(script.as_bytes())
+      .map_err(|e| Error::Internal(format!("error trying to direct stdin {}", e)))?;
+  }
+
+  let output = child.wait_with_output()
+    .map_err(|e| Error::Internal(format!("could not execute remotely {}", e)))?;
+
+  if !output.status.success() {
+    return Err(Error::Command { bin: "ssh".to_owned(), message: format!("stderr of remote execution is {}", String::from_utf8_lossy(&output.stderr)) })
+  }
+
+  let ouput_ok = String::from_utf8_lossy(&output.stdout);
+
+  Ok(format!("{}", ouput_ok))
 }
 
 

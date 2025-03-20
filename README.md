@@ -8,3 +8,5 @@ SSH connections manager without ssh config files.
 - Enable portable and encrypted information source (sqlite)
 
 It needs `ssh` and `ssh-keygen` to be installed in your system.
+
+- [Development](./README/dev.md)

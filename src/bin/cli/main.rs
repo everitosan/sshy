@@ -59,8 +59,8 @@ async fn main() -> Result<(), ()> {
 
   let pass = match prompt::password::ask(config.db_name.exists()) {
     Ok(p) => p,
-    Err(e) => {
-      println!("{}", e);
+    Err(_e) => {
+      print_farewell();
       return Ok(())
     }
   };

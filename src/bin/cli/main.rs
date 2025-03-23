@@ -6,7 +6,7 @@ use std::{str::FromStr, thread::sleep, time};
 use colorize::AnsiColor;
 use inquire::Select;
 use log::debug;
-use sqlx::SqlitePool;
+use sqlx::{sqlite::SqliteConnectOptions, SqlitePool};
 use clap::{Parser, Subcommand};
 
 use sshy::{
@@ -65,17 +65,33 @@ async fn main() -> Result<(), ()> {
     }
   };
 
+  let options = SqliteConnectOptions::from_str(&config.db_name.to_str().unwrap()).unwrap()
+    .pragma("key", pass.clone()) // Establece la clave de cifrado
+    .create_if_missing(true) // Crea la BD si no existe
+    .to_owned();
+
+  let pool = SqlitePool::connect_with(options).await.unwrap(); 
+
   // DB Instance
-  let db_res = match SqliteStore::try_create(&config.db_name).await {
+  let db_res = match SqliteStore::try_create(&config.db_name, &pass).await {
     Ok(d) => d,
     Err(e) => {
       println!("{}", e);
       return Ok(());
     }
   };
-
-  let pool = SqlitePool::connect(&config.db_name.to_str().unwrap()).await.unwrap();
+  
+  
+  // let options = SqliteConnectOptions::from_str(&config.db_name.to_str().unwrap()).unwrap()
+  //   .pragma("key", pass.clone()) // Establece la clave de cifrado
+  //   .create_if_missing(true) // Crea la BD si no existe
+  //   .to_owned();
+  
+  // let pool = SqlitePool::connect_with(options).await.unwrap(); 
+  
+  // let pool = SqlitePool::connect(&config.db_name.to_str().unwrap()).await.unwrap();
   let sqlite_repo = SqliteStore::new(&pool);
+  sqlite_repo.initialize().await.unwrap();
 
   match db_res {
     DBCreateResutl::Created => {

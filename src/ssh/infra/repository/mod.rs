@@ -3,8 +3,12 @@ pub mod server;
 pub mod credentials;
 
 use std::path::PathBuf;
+use std::str::FromStr;
 
 
+use colorize::AnsiColor;
+use sqlx::sqlite::SqliteConnectOptions;
+use sqlx::ConnectOptions;
 use uuid::Uuid;
 use async_trait::async_trait;
 use sqlx::{migrate::MigrateDatabase, Pool, Sqlite};
@@ -49,12 +53,19 @@ fn get_db_name(db_path: &PathBuf) -> Result<String> {
 }
 
 impl <'a> SqliteStore <'a> {
-  pub async fn try_create(db_file: &PathBuf) -> Result<DBCreateResutl> {
+  pub async fn try_create(db_file: &PathBuf, pass: &str) -> Result<DBCreateResutl> {
     let db_str = get_db_name(db_file)?;
     if !Sqlite::database_exists(&db_str).await.unwrap_or(false) {
-      if let Err(e) = Sqlite::create_database(&db_str).await {
-        return Err(Error::DB(format!("{}", e)))
-      }
+      println!("Creating {}", db_str.yellow());
+      let _ = SqliteConnectOptions::from_str(&db_file.to_str().unwrap())?
+      .pragma("key", pass.to_owned())
+      .create_if_missing(true)
+      .connect()
+      .await?;
+
+      // if let Err(e) = Sqlite::create_database(&db_str).await {
+      //   return Err(Error::DB(format!("{}", e)))
+      // }
       return Ok(DBCreateResutl::Created);
     }
     Ok(DBCreateResutl::Existed)

@@ -21,8 +21,9 @@ dirs = "6.0.0"
 # sqite
 futures = "0.3.18"
 async-trait = "0.1.88"
-async-std = { version = "1.6", features = ["attributes"] }
-sqlx = { version = "0.5.9", features=["runtime-async-std-native-tls", "sqlite"] }
+async-std = { version = "1.13.1", features = ["attributes"] }
+sqlx = { version = "0.8.3", features=["runtime-async-std-native-tls", "sqlite"] }
+libsqlite3-sys = { version = "0.30.1", features = ["bundled", "sqlcipher"] }
 
 ## cli
 clap = { version = "4.5.32", features = ["derive"] }

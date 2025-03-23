@@ -1,4 +1,4 @@
-use sshy::ssh::domain::Server;
+use sshy::ssh::domain::server::Server;
 
 pub fn sever_as_str(server: &Server) -> String {
   format!("☍ {}", server.name)

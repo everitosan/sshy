@@ -2,10 +2,10 @@ use uuid::Uuid;
 
 use crate::{
   error::Result,
-  ssh::{domain::{Group, SshStore}, dtos::CreateGroupDto}
+  ssh::{domain::group::{SshyGroupRepo, Group}, dtos::CreateGroupDto}
 };
 
-pub async fn create<T: SshStore>(store: &T, name: &str,  parent_group: &Option<Group>) -> Result<Group> {
+pub async fn create<T: SshyGroupRepo>(store: &T, name: &str,  parent_group: &Option<Group>) -> Result<Group> {
   let parent_id: Option<Uuid> = if let Some(parent) = parent_group {
     Some(parent.id.clone())
   } else {
@@ -21,17 +21,16 @@ pub async fn create<T: SshStore>(store: &T, name: &str,  parent_group: &Option<G
   store.create_group(dto).await
 }
 
-pub async fn get<T: SshStore>(store: &T, id: Uuid) -> Result<Option<Group>> {
+pub async fn get<T: SshyGroupRepo>(store: &T, id: Uuid) -> Result<Option<Group>> {
   store.get_group_by_id(id).await
 }
 
-pub async fn list<T: SshStore>(store: &T, parent_group: &Option<Group>) -> Result<Vec<Group>> {
-
+pub async fn list<T: SshyGroupRepo>(store: &T, parent_group: &Option<Group>) -> Result<Vec<Group>> {
   let id: Option<Uuid> = if let Some(parent) = parent_group {
   Some(parent.id.clone())
   } else {
     None
   };
 
-  store.list_groups(&id).await
+  store.get_all_groups(&id).await
 }

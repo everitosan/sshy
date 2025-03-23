@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
 
 use sshy::{
   config::Config,
-  ssh::{app::{self, server::CreaterServer}, domain::{Group, SshStore}, infra::repository::{DBCreateResutl, SqliteStore}},
+  ssh::{app::{self, credentials::AppCredentialsDto, server::CreateServerDto}, domain::{group::Group, SshStore}, infra::repository::{DBCreateResutl, SqliteStore}},
 };
 
 use parser::{
@@ -121,7 +121,6 @@ async fn main() -> Result<(), ()> {
   } else {
     // Interactive mode
     let mut current_group: Option<Group> = None;
-    // let mut current_server: Option<Server> = None;
 
     loop {
       match app::group::list(&sqlite_repo, &current_group).await {
@@ -180,21 +179,29 @@ async fn main() -> Result<(), ()> {
               prompt::group::options::ExtraOptions::AddServer => {
                 let server = match prompt::server::ask() {
                   Ok(sp) => {
-                    CreaterServer {
+                    CreateServerDto {
                       name: sp.name,
                       group_id: current_group.clone().unwrap().id,
                       host: sp.host,
                       port: sp.port,
-                      user: sp.user
                     }
                   },
                   Err(_) => {
                     continue;
                   }
                 };
-                let server = app::server::create(&sqlite_repo, server, &config.ssh_path.clone(), &pass).await.unwrap();
-                // update current group
-                current_group = app::group::get(&sqlite_repo, server.group_id).await.unwrap();
+                match app::server::create(&sqlite_repo, server).await {
+                  Ok(s) => {
+                    // update current group
+                    println!("{} server created", s.name);
+                    let mut updated_group = current_group.clone().unwrap();
+                    updated_group.servers.push(s);
+                    current_group = Some(updated_group);
+                  },
+                  Err(e) => {
+                    println!("error: {}", e);
+                  }
+                };
               },
               _ => {}
             };
@@ -205,16 +212,51 @@ async fn main() -> Result<(), ()> {
             }
             // if select a server, show options server
             if let Some(server) = current_group.clone().unwrap().servers.iter().find(|s| str_opt == prompt::server::transform::sever_as_str(s)) {
-              // current_server = Some(server.clone());
-              println!("Hostname: {}", server.hostname.clone().magenta());
-              println!("Port: {}", server.port.clone());
-              println!("User: {}", server.user.clone().magenta());
+              println!("\t{}:{}", server.hostname.clone().magenta(), format!("{}", server.port).magenta());
               // Ask for option
               match Select::new("", prompt::server::options::OPTS.to_vec()).prompt() {
                 Ok(predefined_server_option) =>  {
                   match predefined_server_option {
                     prompt::server::options::ExtraOptions::Connect => {
-                      app::server::connect(&sqlite_repo, server, &config.ssh_path.clone()).await.unwrap();
+                      match app::credentials::get_for_server_id(&sqlite_repo, server.id).await {
+                        Ok(credentials) => {
+                          let selected_credential;
+                          if credentials.len() == 0 { 
+                            // Create credentials
+                            let prompt_dto = prompt::credentials::ask().unwrap();
+                            let app_dto = AppCredentialsDto {
+                              name: prompt_dto.name,
+                              private_key: prompt_dto.private_key,
+                              public_key: prompt_dto.public_key,
+                              user: prompt_dto.user,
+                              server_id: server.id
+                            };
+                            if let Ok(res) = app::credentials::create_for_server(&sqlite_repo, &server, &app_dto, &config.ssh_path, &pass).await {
+                              selected_credential = res;
+                            } else {
+                              continue;
+                            }
+                          } else {
+                            let cred_options = prompt::credentials::transform::credentials_as_vec(&credentials);
+                            let selected_credential_str = match Select::new("Select credentials to use:", cred_options).prompt() {
+                              Ok(o) => o,
+                              Err(_) => {
+                                continue;
+                              }
+                            };
+                            if let Some(s) = credentials.iter().find(|c| selected_credential_str == prompt::credentials::transform::credential_as_str(c)) {
+                              selected_credential = s.clone();
+                            } else {
+                              continue;
+                            }
+                          }
+
+                          app::server::connect(server, &selected_credential, &config.ssh_path.clone()).await.unwrap();
+                        }, 
+                        Err(e) => {
+                          println!("Some error ocurred: {}", e);
+                        }
+                      };
                     },
                     prompt::server::options::ExtraOptions::EditServer => todo!(),
                     prompt::server::options::ExtraOptions::DeleteServer => todo!(),

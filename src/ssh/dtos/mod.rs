@@ -2,9 +2,11 @@ use uuid::Uuid;
 
 
 #[derive(Default)]
-pub struct CreateKeyPairDto {
+pub struct CreateCredentialsDto {
   pub id: Uuid,
+  pub name: String,
   pub server_id: Uuid,
+  pub user: String,
   pub public: String,
   pub private: String
 }
@@ -15,8 +17,7 @@ pub struct CreateServerDto {
   pub group_id: Uuid,
   pub name: String,
   pub host: String,
-  pub port: u32,
-  pub user: String
+  pub port: u32
 }
 
 
@@ -25,8 +26,7 @@ pub struct UpdateServerDto {
   pub group_id: Uuid,
   pub name: String,
   pub host: String,
-  pub port: u32,
-  pub user: String
+  pub port: u32
 }
 
 

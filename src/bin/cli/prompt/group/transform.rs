@@ -1,4 +1,4 @@
-use sshy::ssh::domain::Group;
+use sshy::ssh::domain::group::Group;
 
 
 pub fn group_as_str(group: &Group) -> String {

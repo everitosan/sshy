@@ -66,7 +66,7 @@ pub async fn create_for_server<T: SshyCredentialsRepo>(store: &T, server: &Serve
   };
 
   let variables: Option<Vec<String>> = Some(vec![format!("PUBKEY='{}'", dto.public.trim())]);
-  remote_execute(&server, &dto.user, REGISTER_KEY_SH, variables)?;
+  remote_execute(&server, &dto.user, REGISTER_KEY_SH, variables, None)?;
   store.save_credentials(dto).await
 }
 

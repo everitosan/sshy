@@ -3,10 +3,18 @@
 # SSHY
 SSH connections manager without ssh config files.
 
-**Features**  
+## Requirements
+
+`ssh` and `ssh-keygen` must be installed in your system.
+
+## Features  
 - Manage groups, severs and keys
+- Connect to registered servers
+- Remote execution of scripts similar to [cry](https://github.com/everitosan/BashScripts/tree/main/cri)  
+
+**Wip**
 - Enable portable and encrypted information source (sqlite)
 
-It needs `ssh` and `ssh-keygen` to be installed in your system.
 
+## Guides
 - [Development](./README/dev.md)

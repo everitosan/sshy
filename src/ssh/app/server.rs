@@ -74,7 +74,7 @@ pub async fn connect(server: &Server, credentials: &Credentials, ssh_path: &Path
   Ok(())
 }
 
-pub fn remote_execute(server: &Server, user: &str, script: &str, variables: Option<Vec<String>>) -> Result<String> {
+pub fn remote_execute(server: &Server, user: &str, script: &str, variables: Option<Vec<String>>, key_path: Option<&PathBuf>) -> Result<String> {
   let dst = format!("{}@{}", user, server.hostname);
   let train_vars = match variables {
     Some(vars) => {
@@ -88,10 +88,22 @@ pub fn remote_execute(server: &Server, user: &str, script: &str, variables: Opti
 
   debug!("ssh {} -p {} {} bash -s ", &dst, server.port, &train_vars);
 
-  let mut child = Command::new("ssh")
-    .arg(&dst)
-    .arg("-p")
-    .arg(format!("{}", server.port))
+  let mut command = Command::new("ssh");
+  // set remote server
+  command.arg(&dst);
+  // set port
+  command.arg("-p")
+    .arg(format!("{}", server.port));
+
+  // if key set -i
+  if let Some(key) = key_path {
+    let key_path_str = format!("{}", key.to_str().unwrap().trim());
+    println!("{}", key_path_str);
+    command.arg("-i");
+    command.arg(key_path_str);
+  }
+
+  let mut child = command
     .arg(format!("{} bash -s", &train_vars))
     .stdin(Stdio::piped())
     .stdout(Stdio::piped())

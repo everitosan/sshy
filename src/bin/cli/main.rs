@@ -1,7 +1,7 @@
 mod prompt;
 mod parser;
 
-use std::{str::FromStr, thread::sleep, time};
+use std::{fs, str::FromStr, thread::sleep, time};
 
 use colorize::AnsiColor;
 use inquire::Select;
@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
 
 use sshy::{
   config::Config,
-  ssh::{app::{self, credentials::AppCredentialsDto, server::CreateServerDto}, domain::{group::Group, SshStore}, infra::repository::{DBCreateResutl, SqliteStore}},
+  ssh::{app::{self, credentials::{self, AppCredentialsDto}, server::CreateServerDto}, domain::{group::Group, SshStore}, infra::repository::{DBCreateResutl, SqliteStore}},
 };
 
 use parser::{
@@ -257,6 +257,58 @@ async fn main() -> Result<(), ()> {
                           println!("Some error ocurred: {}", e);
                         }
                       };
+                    },
+                    prompt::server::options::ExtraOptions::Execute => {
+                      match app::credentials::get_for_server_id(&sqlite_repo, server.id).await {
+                        Ok(credentials) => {
+                          let selected_credential;
+                          if credentials.len() > 0 {
+                            let cred_options = prompt::credentials::transform::credentials_as_vec(&credentials);
+                            let selected_credential_str = match Select::new("Select credentials to use:", cred_options).prompt() {
+                              Ok(o) => o,
+                              Err(_) => {
+                                continue;
+                              }
+                            };
+                            if let Some(s) = credentials.iter().find(|c| selected_credential_str == prompt::credentials::transform::credential_as_str(c)) {
+                              selected_credential = s.clone();
+                              match credentials::ensure_private_key(&config.ssh_path, &selected_credential) {
+                                Ok(cred) => {
+                                  if let Ok(script_path) = prompt::server::ask_script() {
+                                    let script = fs::read_to_string(script_path)
+                                      .expect("Should have been able to read script the file");
+    
+                                    match app::server::remote_execute(server, &selected_credential.user, &script, None, Some(&cred)) {
+                                      Ok(res) => {
+                                        println!("{}", "░▒▓ Execution output ".green());
+                                        println!("{}", res);
+                                        println!("{}", "░▒▓".green());
+                                      },
+                                      Err(e) => {
+                                        println!("{}", "Execution failed".red());
+                                        println!("{}", e);
+                                      }
+                                    }
+                                  }
+                                },
+                                Err(e) => {
+                                  println!("Corrupt private key {}", e);
+                                }
+                              };
+
+                            } else {
+                              continue;
+                            }
+                          } else {
+                            let message = format!("Server has no credentials, try a connection fisrt");
+                            println!("{}", message.yellow());
+                          }
+                        }, 
+                        Err(e) => {
+                          println!("Some error ocurred: {}", e);
+                        }
+                      };
+
                     },
                     prompt::server::options::ExtraOptions::EditServer => todo!(),
                     prompt::server::options::ExtraOptions::DeleteServer => todo!(),

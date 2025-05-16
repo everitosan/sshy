@@ -1,6 +1,9 @@
+use std::str::FromStr;
+
+use std::path::PathBuf;
 use colorize::AnsiColor;
 use inquire::Text;
-use sshy::error::Result;
+use sshy::error::{Result, Error};
 
 pub mod options;
 pub mod transform;
@@ -24,4 +27,18 @@ pub fn ask() -> Result<ServerPrompt>{
   };
 
   Ok(s)
+}
+
+pub fn ask_script() -> Result<PathBuf> {
+  let message = "Script path".green();
+  let script_path_str = Text::new(&message).prompt()?;
+
+  let script_path = PathBuf::from_str(&script_path_str)
+    .map_err(|e| Error::Internal(format!("Could not create PathBuff, {}", e)))?;
+
+  if !script_path.exists() {
+    return Err(Error::FsError(format!("Script {} does not exist", script_path_str)))
+  }
+  
+  Ok(script_path)
 }

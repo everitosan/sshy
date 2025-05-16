@@ -1,4 +1,4 @@
-use std::fs::{create_dir_all, set_permissions, File};
+use std::fs::{self, create_dir_all, set_permissions, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::Command;
@@ -84,6 +84,13 @@ pub fn ensure_private_key(ssh_path: &PathBuf, credentials: &Credentials) -> Resu
   if !key_path.exists() {
     let key_path_str = &key_path.clone();
     let message = format!("Recreating file {} in {}", key_path_str.to_str().unwrap(), OS);
+
+    if let Some(parent) = key_path.parent() {
+      if !parent.exists() {
+        fs::create_dir_all(&parent)
+          .map_err(|e| Error::FsError(format!("could not keys path dir: {}", e)))?;
+      }
+    }
 
     println!("{}", message.yellow());
 

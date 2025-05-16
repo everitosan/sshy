@@ -41,18 +41,30 @@ impl Config {
   }
 
   pub fn create(dto: &CreateConfigDto) -> Result<Self> {
-    let path = get_config_file()?;
-    // create dir
-    fs::create_dir_all(&path.parent().unwrap())
+    // create path for db file
+    let mut db_file = get_config_dir()?;
+    db_file.push(&dto.db_name);
+    
+    // modify config to save db at config file
+    let real_config = CreateConfigDto {
+      ssh_path: dto.ssh_path.clone(),
+      db_name: format!("{}", db_file.to_str().unwrap())
+    };
+
+    let config_file_path = get_config_file()?;
+    // create config dir
+    fs::create_dir_all(&config_file_path.parent().unwrap())
       .map_err(|e| Error::FsError(format!("could not create config dir: {}", e)))?;
-    // create and write file
-    let mut file = File::create(path)
+    // create and write .sshy.json file
+    let mut file = File::create(config_file_path)
       .map_err(|e| Error::FsError(format!("could not create config file: {}", e)))?;
-    let data: String = serde_json::to_string(&dto).unwrap();
+  
+    let data: String = serde_json::to_string(&real_config).unwrap();
     file.write_all(data.as_bytes())
       .map_err(|e| Error::FsError(format!("could not create config file: {}", e)))?;
+
     Ok(Config {
-      db_name: PathBuf::from_str(&dto.db_name).unwrap(),
+      db_name: db_file,
       ssh_path: PathBuf::from_str(&dto.ssh_path).unwrap()
     })
   }

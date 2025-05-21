@@ -98,7 +98,6 @@ pub fn remote_execute(server: &Server, user: &str, script: &str, variables: Opti
   // if key set -i
   if let Some(key) = key_path {
     let key_path_str = format!("{}", key.to_str().unwrap().trim());
-    println!("{}", key_path_str);
     command.arg("-i");
     command.arg(key_path_str);
   }

@@ -236,6 +236,8 @@ async fn main() -> Result<(), ()> {
                             } else {
                               continue;
                             }
+                          } else if credentials.len() == 1 {
+                              selected_credential = credentials.get(0).unwrap().clone();
                           } else {
                             let cred_options = prompt::credentials::transform::credentials_as_vec(&credentials);
                             let selected_credential_str = match Select::new("Select credentials to use:", cred_options).prompt() {
@@ -262,7 +264,13 @@ async fn main() -> Result<(), ()> {
                       match app::credentials::get_for_server_id(&sqlite_repo, server.id).await {
                         Ok(credentials) => {
                           let selected_credential;
-                          if credentials.len() > 0 {
+                          if credentials.len() == 0 {
+                            let message = format!("Server has no credentials, try a connection first");
+                            println!("{}", message.yellow());
+                            continue;
+                          } else if credentials.len() == 1 {
+                            selected_credential = credentials.get(0).unwrap().clone();
+                          } else  {
                             let cred_options = prompt::credentials::transform::credentials_as_vec(&credentials);
                             let selected_credential_str = match Select::new("Select credentials to use:", cred_options).prompt() {
                               Ok(o) => o,
@@ -272,40 +280,37 @@ async fn main() -> Result<(), ()> {
                             };
                             if let Some(s) = credentials.iter().find(|c| selected_credential_str == prompt::credentials::transform::credential_as_str(c)) {
                               selected_credential = s.clone();
-                              match credentials::ensure_private_key(&config.ssh_path, &selected_credential) {
-                                Ok(cred) => {
-                                  if let Ok(script_path) = prompt::server::ask_script() {
-                                    let script = fs::read_to_string(script_path)
-                                      .expect("Should have been able to read script the file");
-    
-                                    match app::server::remote_execute(server, &selected_credential.user, &script, None, Some(&cred)) {
-                                      Ok(res) => {
-                                        println!("{}", "░▒▓ Execution output ".green());
-                                        println!("{}", res);
-                                        println!("{}", "░▒▓".green());
-                                      },
-                                      Err(e) => {
-                                        println!("{}", "Execution failed".red());
-                                        println!("{}", e);
-                                      }
-                                    }
-                                  }
-                                },
-                                Err(e) => {
-                                  println!("Corrupt private key {}", e);
-                                }
-                              };
-
                             } else {
                               continue;
                             }
-                          } else {
-                            let message = format!("Server has no credentials, try a connection fisrt");
-                            println!("{}", message.yellow());
                           }
+                          // Execute script with selected cxredential
+                          match credentials::ensure_private_key(&config.ssh_path, &selected_credential) {
+                            Ok(cred) => {
+                              if let Ok(script_path) = prompt::server::ask_script() {
+                                let script = fs::read_to_string(script_path)
+                                  .expect("Should have been able to read script the file");
+
+                                match app::server::remote_execute(server, &selected_credential.user, &script, None, Some(&cred)) {
+                                  Ok(res) => {
+                                    println!("{}", "░▒▓ Execution output ".green());
+                                    println!("{}", res);
+                                    println!("{}", "░▒▓".green());
+                                  },
+                                  Err(e) => {
+                                    println!("{}", "Execution failed".red());
+                                    println!("{}", e);
+                                  }
+                                }
+                              }
+                            },
+                            Err(e) => {
+                              println!("Corrupt private key {}", e);
+                            }
+                          };
                         }, 
                         Err(e) => {
-                          println!("Some error ocurred: {}", e);
+                          println!("Some error getting credentials: {}", e);
                         }
                       };
 

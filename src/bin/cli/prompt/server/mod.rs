@@ -30,8 +30,9 @@ pub fn ask() -> Result<ServerPrompt>{
 }
 
 pub fn ask_script() -> Result<PathBuf> {
-  let message = "Script path".green();
-  let script_path_str = Text::new(&message).prompt()?;
+  let message = "Script path:".green();
+  let mut script_path_str = Text::new(&message).prompt()?;
+  script_path_str = script_path_str.trim().to_owned();
 
   let script_path = PathBuf::from_str(&script_path_str)
     .map_err(|e| Error::Internal(format!("Could not create PathBuff, {}", e)))?;

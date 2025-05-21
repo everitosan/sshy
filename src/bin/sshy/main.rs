@@ -241,7 +241,7 @@ async fn main() -> Result<(), ()> {
                               user: prompt_dto.user,
                               server_id: server.id
                             };
-                            if let Ok(res) = app::credentials::create_for_server(&sqlite_repo, &server, &app_dto, &config.ssh_path, &pass).await {
+                            if let Ok(res) = app::credentials::create_for_server(&sqlite_repo, &server, &app_dto, &config.ssh_path).await {
                               selected_credential = res;
                             } else {
                               continue;
@@ -263,7 +263,9 @@ async fn main() -> Result<(), ()> {
                             }
                           }
 
-                          app::server::connect(server, &selected_credential, &config.ssh_path.clone()).await.unwrap();
+                          if let Err(e) = app::server::connect(server, &selected_credential, &config.ssh_path.clone()).await {
+                            println!("Possible error ocurred {}", e);
+                          }
                         }, 
                         Err(e) => {
                           println!("Some error ocurred: {}", e);

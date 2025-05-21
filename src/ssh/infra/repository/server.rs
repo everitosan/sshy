@@ -41,6 +41,8 @@ pub async fn list(pool: &Pool<Sqlite>, group_id: Uuid) -> Result<Vec<Server>> {
     sshy_server
   WHERE
     s.id = ?
+  ORDER BY
+    
   "#;
   let rows= sqlx::query(q).bind(group_id.to_string()).fetch_all(pool).await?;
   let res: Vec<Server> = rows.iter().map(|r| server_from_row(r)).collect();

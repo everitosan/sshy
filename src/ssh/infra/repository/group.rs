@@ -24,15 +24,18 @@ pub async fn get_all(pool: &Pool<Sqlite>, id: &Option<Uuid>) -> Result<Vec<Group
       sshy_group g 
     LEFT JOIN 
       sshy_server s ON s.group_id = g.id 
-    WHERE g.parent_id
+    WHERE 
+      g.parent_id
   "#);
 
   if let Some(group_id) = id {
-    query += "= ?"; 
+    query += "= ? ";
+    query += "ORDER BY g.name ASC, s.name ASC";
     rows = sqlx::query(&query).bind(group_id.to_string()).fetch_all(pool).await?;
   
   } else {
-    query += " IS NULL";
+    query += " IS NULL ";
+    query += "ORDER BY g.name ASC, s.name ASC";
     rows = sqlx::query(&query).fetch_all(pool).await?;
   }
 
@@ -74,7 +77,11 @@ pub async fn get_by_id(pool: &Pool<Sqlite>, id: Uuid) -> Result<Option<Group>> {
       sshy_group g 
     LEFT JOIN 
       sshy_server s ON s.group_id = g.id 
-    WHERE g.id = ?"#;
+    WHERE 
+      g.id = ?
+    ORDER_BY
+      s.name ASC
+    "#;
 
   let rows = sqlx::query(q).bind(id.to_string()).fetch_all(pool).await?;
   let res: Vec<Group> = groups_servers_from_row(&rows);

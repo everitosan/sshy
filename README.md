@@ -11,10 +11,11 @@ SSH connections manager without config files.
 - Manage groups, severs and credentials
 - Connect to registered servers
 - Remote execution of scripts similar to [cry](https://github.com/everitosan/BashScripts/tree/main/cri) 
-- Portable information source (sqlite)
+- Portable and Encrypted information source (sqlcipher)
 
 **Wip**
-- Encrypted information source (sqlcipher)
+- Group edition and delete 
+- Server edition and delete 
 
 ## Install
 

@@ -15,9 +15,9 @@ pub struct ServerPrompt {
 }
 
 pub fn ask() -> Result<ServerPrompt>{
-  let name_message = "Server name".green();
-  let host_message = "Host address".green();
-  let port_message = "Port".green();
+  let name_message = "Server name:".green();
+  let host_message = "Host address:".green();
+  let port_message = "Port:".green();
 
 
   let s = ServerPrompt {

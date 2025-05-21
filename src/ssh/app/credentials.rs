@@ -35,7 +35,7 @@ pub async fn get_for_server_id<T: SshyCredentialsRepo>(store: &T, id: Uuid) -> R
   store.get_credentials_by_server_id(id).await
 }
 
-pub async fn create_for_server<T: SshyCredentialsRepo>(store: &T, server: &Server, data: &AppCredentialsDto, key_path: &PathBuf, password: &str) -> Result<Credentials> {
+pub async fn create_for_server<T: SshyCredentialsRepo>(store: &T, server: &Server, data: &AppCredentialsDto, key_path: &PathBuf) -> Result<Credentials> {
   let keypair_id = Uuid::new_v4();
 
   let mut public_key = if let Some(public) = &data.public_key {
@@ -51,7 +51,7 @@ pub async fn create_for_server<T: SshyCredentialsRepo>(store: &T, server: &Serve
   };
 
   if private_key.is_empty() || public_key.is_empty() {
-    let keys = create_keys(&keypair_id.to_string(), key_path, password)?;
+    let keys = create_keys(&keypair_id.to_string(), key_path)?;
     public_key = keys.0;
     private_key = keys.1;
   }
@@ -113,7 +113,7 @@ pub fn ensure_private_key(ssh_path: &PathBuf, credentials: &Credentials) -> Resu
   Ok(key_path)
 }
 
-fn create_keys(name: &str, ssh_path: &PathBuf, password: &str) -> Result<SSHKeys> {
+fn create_keys(name: &str, ssh_path: &PathBuf) -> Result<SSHKeys> {
 
   let key_path = get_keys_path(ssh_path);
 
@@ -137,8 +137,9 @@ fn create_keys(name: &str, ssh_path: &PathBuf, password: &str) -> Result<SSHKeys
     .arg(&private_key_path)
     .arg("-t")
     .arg("ed25519")
+    .arg("-q")
     .arg("-N")
-    .arg(password)
+    .arg("")
     .output()
     .map_err(|e| Error::Internal(format!("could not create key: {}", e)))?;
 

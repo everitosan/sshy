@@ -1,17 +1,17 @@
 mod prompt;
 mod parser;
 
-use std::{fs, str::FromStr, thread::sleep, time};
+use std::{fs, str::FromStr, sync::Arc, thread::sleep, time};
 
 use colorize::AnsiColor;
 use inquire::Select;
 use log::debug;
-use sqlx::SqlitePool;
+use sqlx::{migrate::MigrateDatabase, sqlite::{SqliteConnectOptions, SqlitePoolOptions}, Sqlite};
 use clap::{Parser, Subcommand};
 
 use sshy::{
   config::Config,
-  ssh::{app::{self, credentials::{self, AppCredentialsDto}, server::CreateServerDto}, domain::{group::Group, SshStore}, infra::repository::{DBCreateResutl, SqliteStore}},
+  ssh::{app::{self, credentials::{self, AppCredentialsDto}, server::CreateServerDto}, domain::{group::Group, SshStore}, infra::repository::SqliteStore},
 };
 
 use parser::{
@@ -65,28 +65,38 @@ async fn main() -> Result<(), ()> {
     }
   };
 
-  // DB Instance
-  let db_res = match SqliteStore::try_create(&config.db_name).await {
-    Ok(d) => d,
-    Err(e) => {
-      println!("{}", e);
-      return Ok(());
-    }
-  };
+  // DB 
+  let mut should_init = true;
+  if Sqlite::database_exists(&config.db_name.to_str().unwrap()).await.unwrap_or(false) { 
+    should_init = false;
+  }
 
-  let pool = SqlitePool::connect(&config.db_name.to_str().unwrap()).await.unwrap();
+  // let pool = SqlitePool::connect(&config.db_name.to_str().unwrap()).await.unwrap();
+  let options = SqliteConnectOptions::from_str(&config.db_name.to_str().unwrap()).unwrap()
+    .create_if_missing(true);
+
+  let pass_arc = Arc::new( format!("PRAGMA key = '{}';", pass.clone()));
+
+  let pool = SqlitePoolOptions::new()
+  .max_connections(5)
+  .after_connect(move |conn, _meta| {
+    let pwd = Arc::clone(&pass_arc);
+      Box::pin(async move {
+        // Aplica la clave de SQLCipher en cada conexión
+        sqlx::query(pwd.as_str())
+          .execute(conn)
+          .await?;
+        Ok(())
+      })
+  })
+  .connect_with(options)
+  .await.unwrap();
+
   let sqlite_repo = SqliteStore::new(&pool);
 
-  match db_res {
-    DBCreateResutl::Created => {
-      sqlite_repo.initialize().await.unwrap();
-      debug!("Database created");
-    },
-    DBCreateResutl::Existed => {
-      debug!("Database already exists");
-    }
-  };
-
+  if should_init {
+    sqlite_repo.initialize().await.unwrap();
+  }
 
   let cli = Cli::parse();
 
@@ -328,7 +338,9 @@ async fn main() -> Result<(), ()> {
           }
         },
         Err(e) => {
-          panic!("{}", e);
+          println!("{}", "Could not read db, check password!!!".yellow());
+          debug!("{}", e);
+          return Ok(())
         }
       }; 
     }

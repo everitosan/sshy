@@ -79,7 +79,7 @@ pub async fn get_by_id(pool: &Pool<Sqlite>, id: Uuid) -> Result<Option<Group>> {
       sshy_server s ON s.group_id = g.id 
     WHERE 
       g.id = ?
-    ORDER_BY
+    ORDER BY
       s.name ASC
     "#;
 

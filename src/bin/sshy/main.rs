@@ -213,6 +213,25 @@ async fn main() -> Result<(), ()> {
                   }
                 };
               },
+              prompt::group::options::ExtraOptions::DeleteGroup => {
+                let cg = current_group.clone().unwrap();
+                match app::group::remove(&sqlite_repo, cg.id).await {
+                  Ok(()) => {
+                    if let Some(parent) = cg.parent_id {
+                      if let Ok(prev) = app::group::get(&sqlite_repo, parent).await {
+                        if let Some(previous_group) = prev {
+                          current_group = Some(previous_group)
+                        }
+                      }
+                    } else {
+                      current_group = None
+                    }
+                  },
+                  Err(e) => {
+                    println!("error: {}", e);
+                  }
+                };
+              },
               _ => {}
             };
           } else {

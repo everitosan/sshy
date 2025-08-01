@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use uuid::Uuid;
-use sqlx::{sqlite::SqliteRow, Pool, Row, Sqlite};
+use sqlx::{sqlite::SqliteRow, Pool, QueryBuilder, Row, Sqlite};
 use crate::{
   ssh::domain::{
     group::Group,
@@ -16,8 +16,8 @@ use crate::{
 
 
 pub async fn get_all(pool: &Pool<Sqlite>, id: &Option<Uuid>) -> Result<Vec<Group>> {
-  let rows;
-  let mut query = String::from(r#"
+
+  let mut q_builder: QueryBuilder<Sqlite> = QueryBuilder::new(r#"
     SELECT 
       g.id, g.parent_id, g.name, s.id, s.name, s.hostname, s.port
     FROM 
@@ -25,20 +25,19 @@ pub async fn get_all(pool: &Pool<Sqlite>, id: &Option<Uuid>) -> Result<Vec<Group
     LEFT JOIN 
       sshy_server s ON s.group_id = g.id 
     WHERE 
-      g.parent_id
+      g.deleted = 0 AND g.parent_id
   "#);
 
   if let Some(group_id) = id {
-    query += "= ? ";
-    query += "ORDER BY g.name ASC, s.name ASC";
-    rows = sqlx::query(&query).bind(group_id.to_string()).fetch_all(pool).await?;
-  
+    q_builder.push("= ").push_bind(group_id.to_string());
   } else {
-    query += " IS NULL ";
-    query += "ORDER BY g.name ASC, s.name ASC";
-    rows = sqlx::query(&query).fetch_all(pool).await?;
+    q_builder.push("IS NULL ");
   }
 
+  q_builder.push("ORDER BY g.name ASC, s.name ASC");
+
+  let query = q_builder.build();
+  let rows = query.fetch_all(pool).await?;
   let res: Vec<Group> = groups_servers_from_row(&rows);
   Ok(res)
 }
@@ -112,6 +111,22 @@ pub async fn update(pool: &Pool<Sqlite>, id: uuid::Uuid, dto: UpdateGroupDto) ->
     .await?;
 
   return Ok(group_from_row(&row))
+}
+
+pub async fn remove(pool: &Pool<Sqlite>, id: uuid::Uuid) -> Result<()> {
+  let query = r#"
+    UPDATE sshy_group SET
+      deleted = true
+    WHERE
+      id = ?
+  "#;
+
+  sqlx::query(query)
+    .bind(id.to_string())
+    .execute(pool)
+    .await?;
+
+  Ok(())
 }
 
 // Aux functions

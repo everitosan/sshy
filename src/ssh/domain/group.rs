@@ -22,5 +22,6 @@ pub trait SshyGroupRepo {
   async fn get_all_groups(&self, id: &Option<Uuid>) -> Result<Vec<Group>>;
   async fn get_group_by_id(&self, id: Uuid) -> Result<Option<Group>>;
   async fn create_group(&self, dto: dtos::CreateGroupDto) -> Result<Group>;
-  async fn update_group(&self, id: Uuid, dto: dtos::UpdateGroupDto) -> Result<Group>; 
+  async fn update_group(&self, id: Uuid, dto: dtos::UpdateGroupDto) -> Result<Group>;
+  async fn remove_group(&self, id: Uuid) -> Result<()>;
 }

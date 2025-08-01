@@ -34,3 +34,7 @@ pub async fn list<T: SshyGroupRepo>(store: &T, parent_group: &Option<Group>) -> 
 
   store.get_all_groups(&id).await
 }
+
+pub async fn remove<T: SshyGroupRepo>(store: &T, id: Uuid) -> Result<()> {
+  store.remove_group(id.clone()).await
+}

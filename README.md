@@ -14,8 +14,8 @@ SSH connections manager without config files.
 - Portable and Encrypted information source (sqlcipher)
 
 **Wip**
-- Group edition and delete 
-- Server edition and delete 
+- Group & Server edition
+- Add extra credentials 
 
 ## Install
 

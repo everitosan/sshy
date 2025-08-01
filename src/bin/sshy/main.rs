@@ -347,7 +347,20 @@ async fn main() -> Result<(), ()> {
 
                     },
                     prompt::server::options::ExtraOptions::EditServer => todo!(),
-                    prompt::server::options::ExtraOptions::DeleteServer => todo!(),
+                    prompt::server::options::ExtraOptions::DeleteServer => {
+                      match app::server::remove(&sqlite_repo, server.id).await {
+                        Ok(()) => {
+                          let mut updated_group = current_group.clone().unwrap();
+                          let index = updated_group.servers.iter().position(|s| s.id == server.id).unwrap(); 
+                          updated_group.servers.remove(index);
+                          current_group = Some(updated_group);
+                        },
+                        Err(e) => {
+                          println!("error: {}", e);
+
+                        }
+                      };
+                    },
                     prompt::server::options::ExtraOptions::Back => {},
                   }
                 },

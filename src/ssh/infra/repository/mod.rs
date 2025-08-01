@@ -107,6 +107,9 @@ impl <'a> SshyServerRepo for SqliteStore <'a> {
   async fn update_server(&self, id: Uuid, dto: UpdateServerDto) -> Result<Server> {
     server::update(self.pool, id, dto).await
   }
+  async fn remove_server(&self, id: Uuid) -> Result<()> {
+    server::delete(self.pool, id).await
+  }
 }
 
 

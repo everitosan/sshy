@@ -74,6 +74,20 @@ pub async fn update(pool: &Pool<Sqlite>, id: Uuid, dto: UpdateServerDto) -> Resu
   Ok(server_from_row(&row))
 }
 
+pub async fn delete(pool: &Pool<Sqlite>, id: Uuid) -> Result<()> {
+  let query = r#"
+    UPDATE sshy_server SET
+      deleted = 1
+    WHERE
+      id = ?
+  "#;
+  sqlx::query(query)
+    .bind(id.to_string())
+    .execute(pool)
+    .await?;
+  Ok(())
+}
+
 
 fn server_from_row(row: &SqliteRow) -> Server {
   let mut s = Server::default();

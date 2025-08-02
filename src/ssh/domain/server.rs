@@ -21,4 +21,5 @@ pub trait SshyServerRepo {
   async fn create_server(&self, dto: dtos::CreateServerDto) -> Result<Server>;
   async fn list_servers(&self, group_id: Uuid) -> Result<Vec<Server>>;
   async fn update_server(&self, id: Uuid, dto: dtos::UpdateServerDto) -> Result<Server>;
+  async fn remove_server(&self, id: Uuid) -> Result<()>;
 }

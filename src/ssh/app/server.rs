@@ -48,6 +48,11 @@ pub async fn create<T: SshyServerRepo + SshyGroupRepo + SshyCredentialsRepo>(sto
   store.create_server(server_dto).await
 }
 
+pub async fn remove<T: SshyServerRepo>( store : &T, id: Uuid) -> Result<()> {
+  store.remove_server(id).await
+}
+
+
 // Creates an SSH connection to server
 pub async fn connect(server: &Server, credentials: &Credentials, ssh_path: &PathBuf) -> Result<()> {
 
@@ -70,9 +75,10 @@ pub async fn connect(server: &Server, credentials: &Credentials, ssh_path: &Path
   if !output.status.success() {
     return Err(Error::Command { bin: "ssh".to_owned(), message: format!("stderr of remote connection is {}", String::from_utf8_lossy(&output.stderr)) })
   }
-
+  
   Ok(())
 }
+
 
 pub fn remote_execute(server: &Server, user: &str, script: &str, variables: Option<Vec<String>>, key_path: Option<&PathBuf>) -> Result<String> {
   let dst = format!("{}@{}", user, server.hostname);

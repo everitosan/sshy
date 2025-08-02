@@ -90,6 +90,9 @@ impl <'a> SshyGroupRepo for SqliteStore <'a> {
   async fn update_group(&self, id: Uuid, dto: UpdateGroupDto) -> Result<Group> {
     group::update(self.pool, id, dto).await
   }
+  async fn remove_group(&self, id: Uuid) -> Result<()> {
+    group::remove(self.pool, id).await
+  }
 }
 
 // Server methods
@@ -103,6 +106,9 @@ impl <'a> SshyServerRepo for SqliteStore <'a> {
   }
   async fn update_server(&self, id: Uuid, dto: UpdateServerDto) -> Result<Server> {
     server::update(self.pool, id, dto).await
+  }
+  async fn remove_server(&self, id: Uuid) -> Result<()> {
+    server::delete(self.pool, id).await
   }
 }
 

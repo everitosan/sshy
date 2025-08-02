@@ -213,6 +213,25 @@ async fn main() -> Result<(), ()> {
                   }
                 };
               },
+              prompt::group::options::ExtraOptions::DeleteGroup => {
+                let cg = current_group.clone().unwrap();
+                match app::group::remove(&sqlite_repo, cg.id).await {
+                  Ok(()) => {
+                    if let Some(parent) = cg.parent_id {
+                      if let Ok(prev) = app::group::get(&sqlite_repo, parent).await {
+                        if let Some(previous_group) = prev {
+                          current_group = Some(previous_group)
+                        }
+                      }
+                    } else {
+                      current_group = None
+                    }
+                  },
+                  Err(e) => {
+                    println!("error: {}", e);
+                  }
+                };
+              },
               _ => {}
             };
           } else {
@@ -328,7 +347,20 @@ async fn main() -> Result<(), ()> {
 
                     },
                     prompt::server::options::ExtraOptions::EditServer => todo!(),
-                    prompt::server::options::ExtraOptions::DeleteServer => todo!(),
+                    prompt::server::options::ExtraOptions::DeleteServer => {
+                      match app::server::remove(&sqlite_repo, server.id).await {
+                        Ok(()) => {
+                          let mut updated_group = current_group.clone().unwrap();
+                          let index = updated_group.servers.iter().position(|s| s.id == server.id).unwrap(); 
+                          updated_group.servers.remove(index);
+                          current_group = Some(updated_group);
+                        },
+                        Err(e) => {
+                          println!("error: {}", e);
+
+                        }
+                      };
+                    },
                     prompt::server::options::ExtraOptions::Back => {},
                   }
                 },

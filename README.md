@@ -3,6 +3,8 @@
 # SSHY
 SSH connections manager without config files.
 
+[![asciicast](https://asciinema.org/a/TezJYgDT5ARl66cYqc8lC1wCP.svg)](https://asciinema.org/a/TezJYgDT5ARl66cYqc8lC1wCP)
+
 ## Requirements
 
 `ssh`, `openssl` and `ssh-keygen` must be installed in your system.

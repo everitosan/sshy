@@ -7,7 +7,8 @@ SSH connections manager without config files.
 
 ## Requirements
 
-`ssh`, `openssl` and `ssh-keygen` must be installed in your system.
+
+`ssh`, `openssl` and `ssh-keygen` must be installed in your system to operate correctly.
 
 ## Features  
 - Manage groups, severs and credentials
@@ -21,9 +22,12 @@ SSH connections manager without config files.
 
 ## Install
 
-To install via cargo run the following command
+To install via cargo you need `gcc`, `libssl-dev` and `pkg-config` packages.
 
 ```bash
+# Install Linux OS dependencies
+sudo apt-get install gcc libssl-dev pkg-config -y
+# Install sshy cli
 cargo install --git https://github.com/everitosan/sshy.git --branch stable
 ```
 
